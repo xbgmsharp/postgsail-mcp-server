@@ -6,6 +6,8 @@
  * $ DANGEROUSLY_OMIT_AUTH=true npx @modelcontextprotocol/inspector
  * * STDIO transport: command=/usr/local/bin/npx, args=tsx,src/index.ts
  *
+ * This server bridges PostgSail marine data systems with AI agents allowing a read-only access to PostgSail marine data systems.
+ *
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -24,10 +26,13 @@ import {
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 import PostgSailClient from "./postgsail-client.js";
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+console.error(process.cwd())
 
 // Initialize environment variables
-const POSTGSAIL_URL =
-  process.env.POSTGSAIL_URL || "http://localhost:3000/";
+const POSTGSAIL_URL = process.env.POSTGSAIL_URL || "http://localhost:3000/";
 const POSTGSAIL_TOKEN = process.env.POSTGSAIL_TOKEN;
 const POSTGSAIL_USER = process.env.POSTGSAIL_USER;
 const POSTGSAIL_PASS = process.env.POSTGSAIL_PASS;
@@ -47,9 +52,6 @@ if (!POSTGSAIL_TOKEN) {
 // Initialize PostgSail client
 const pgsailClient = new PostgSailClient(POSTGSAIL_URL, POSTGSAIL_TOKEN);
 console.error("PostgSailClient initialization...");
-console.error(
-  `${POSTGSAIL_URL} ${POSTGSAIL_USER} ${POSTGSAIL_PASS} ${POSTGSAIL_TOKEN}`
-);
 if (POSTGSAIL_TOKEN) {
   pgsailClient.setToken(POSTGSAIL_TOKEN);
   console.error("PostgSailClient initialization successful via token");
@@ -775,7 +777,7 @@ const tools: Tool[] = [
 const server = new Server(
   {
     name: "postgsail-server",
-    version: "0.0.3",
+    version: "0.0.2",
   },
   {
     capabilities: {
@@ -796,26 +798,19 @@ const RESOURCES: Resource[] = [
     uri: "postgsail://postgsail_overview",
     name: "PostgSail Overview",
     description:
-      "Core concepts and data model structure of SignalK's PostgSail",
+      "Core concepts and data model structure of PostgSail",
     mimeType: "application/json",
   },
   {
-    uri: "https://api.openplotter.cloud/",
-    name: "PostgSail OpenAPI Specification",
-    description:
-      "This provides a list of all endpoints (tables, foreign tables, views, functions), along with supported HTTP verbs and example payloads",
-    mimeType: "application/json",
-  },
-  {
-    uri: "postgsail://data_model_reference",
-    name: "SignalK Data Model Reference",
+    uri: "postgsail://path-categories-guide",
+    name: "SignalK Path Categories Guide",
     description: "Comprehensive reference of SignalK paths and their meanings",
     mimeType: "application/json",
   },
   {
-    uri: "postgsail://path_categories_guide",
-    name: "SignalK Path Categories Guide",
-    description: "Guide to understanding and categorizing SignalK paths",
+    uri: "postgsail://mcp-tool-reference",
+    name: "MCP Tool Reference",
+    description: "Guide to understanding and using MCP tools",
     mimeType: "application/json",
   },
 ];
@@ -830,44 +825,50 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 const PROMPTS = {
   "vessel-system-status": {
     name: "vessel-system-status",
-    description: "🛥️ Give me a summary of my current systems status.",
+    description:
+      "🛥️ Get current vessel systems status including battery charge, voltage, environmental sensors (temperature, humidity, pressure), depth, wind conditions, and online/offline status from the monitoring view.",
     arguments: [],
   },
   "stay-duration-analysis": {
     name: "stay-duration-analysis",
-    description: "📍 Where did we stay the longest during {{month}}?",
+    description:
+      "📍 Analyze moorage stays by duration for a specific month, showing which anchorages, docks, or mooring buoys the vessel used longest, with total time spent at each location.",
     arguments: [
       {
         name: "month",
-        description: "Month to analyze stay duration for",
+        description: "Month to analyze stay duration for (YYYY-MM format)",
         required: true,
       },
     ],
   },
   "anchor-stay-history": {
     name: "anchor-stay-history",
-    description: "⚓ Show me all anchorages we used last month.",
+    description:
+      "⚓ List all moorages (anchorages, docks, mooring buoys) visited during a specific month, including arrival/departure times, duration, and location details from the stays table.",
     arguments: [
       {
         name: "month",
-        description: "Month to analyze stay duration for",
+        description: "Month to retrieve stay history for (YYYY-MM format)",
         required: true,
       },
     ],
   },
   "last-logbook-summary": {
     name: "last-logbook-summary",
-    description: "🧾 Summarize my last voyage log.",
+    description:
+      "🧾 Summarize the most recent completed voyage including distance traveled, duration, max speed, wind conditions, and trajectory data from the logbook table.",
     arguments: [],
   },
   "logbook-summary": {
     name: "logbook-summary",
-    description: "🧾 Summarize the voyage logs for the last month.",
+    description:
+      "🧾 Aggregate voyage statistics for the last month including total distance, time underway, number of trips, and sailing performance metrics from completed logbook entries.",
     arguments: [],
   },
   "system-monitoring": {
     name: "system-monitoring",
-    description: "🔧 List any alerts or events from the vessel today.",
+    description:
+      "🔧 Check for system alerts, low battery warnings, connectivity issues, and recent sensor anomalies based on metrics data and alerting thresholds configured for the vessel.",
     arguments: [],
   },
 };
@@ -1276,11 +1277,64 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
   }
 });
 
-const resourcesMap: Map<string, any> = new Map();
+let resourcesMap: Map<string, any> = new Map();
+/**
+ * Loads resources from the filesystem
+ */
+const loadResources = async (): Promise<void> => {
+    try {
+      const resourceFiles = RESOURCES.map(res => res.uri.split('://')[1]);
+      //console.error("loadResources:", resourceFiles);
+      for (const file of resourceFiles) {
+        try {
+          const filePath = path.join('./resources', `${file}.json`);
+          console.error("loadResources file:", filePath);
+          const resourceName = filePath.replace(/_/g, '-');
+          const content = await fs.readFile(resourceName, 'utf-8');
+
+          resourcesMap.set(`postgsail://${file}`, JSON.parse(content));
+        } catch (error: any) {
+          console.error(`Failed to load resource ${file}:`, error.message);
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to load resources directory:', error.message);
+    }
+  }
+/**
+ * Loads resources from the web
+ */
+const loadResources_web = async (): Promise<void> => {
+    try {
+      const resourceFiles = RESOURCES.map(res => res.uri.split('://')[1]);
+      //console.error("loadResources:", resourceFiles);
+      for (const file of resourceFiles) {
+        try {
+          const resourceName = file.replace(/_/g, '-');
+          const url = `https://openplotter.cloud/resources/${resourceName}.json`;
+          console.error("loadResources_web file:", url);
+          const fetchResult = await fetch(url)
+
+          if (!fetchResult.ok) {
+            throw new Error(`Download failed: ${JSON.stringify(fetchResult)}`)
+          }
+          const content = await fetchResult.text();
+          resourcesMap.set(`postgsail://${file}`, JSON.parse(content));
+        } catch (error: any) {
+          console.error(`Failed to load resource ${file}:`, error.message);
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to load resources directory:', error.message);
+    }
+  }
+
+loadResources_web();
+
 // Handle Resource calls
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
-  
+
   try {
     // Check if it's a resource
     const resourceContent = resourcesMap.get(uri);
