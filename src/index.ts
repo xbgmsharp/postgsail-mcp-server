@@ -26,10 +26,8 @@ import {
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 import PostgSailClient from "./postgsail-client.js";
-import * as fs from 'fs/promises';
-import * as path from 'path';
-
-console.error(process.cwd())
+import * as fs from "fs/promises";
+import * as path from "path";
 
 // Initialize environment variables
 const POSTGSAIL_URL = process.env.POSTGSAIL_URL || "http://localhost:3000/";
@@ -173,69 +171,33 @@ const tools: Tool[] = [
       type: "object",
       properties: {},
     },
+    /*
     outputSchema: {
-      type: "object",
+      type: "object", // Type '"array"' is not assignable to type '"object"'.ts(2322) (property) type: "array"
       items: {
         type: "object",
-        required: [
-          "id",
-          "name",
-          "from",
-          "started",
-          "to",
-          "ended",
-          "distance",
-          "duration",
-          "_from_moorage_id",
-          "_to_moorage_id",
-        ],
         properties: {
-          id: {
-            type: "integer",
-            minimum: 1,
-          },
-          name: {
-            type: "string",
-          },
-          from: {
-            type: "string",
-          },
-          started: {
-            type: "string",
-            format: "date-time",
-          },
-          to: {
-            type: "string",
-          },
-          ended: {
-            type: "string",
-            format: "date-time",
-          },
-          distance: {
-            type: "number",
-            minimum: 0,
-          },
+          id: { type: "integer", minimum: 1 },
+          name: { type: "string" },
+          from: { type: "string" },
+          started: { type: "string", format: "date-time" },
+          to: { type: "string" },
+          ended: { type: "string", format: "date-time" },
+          distance: { type: "number", minimum: 0 },
           duration: {
             type: "string",
             pattern: "^PT(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?$",
           },
-          _from_moorage_id: {
-            type: "integer",
-            minimum: 1,
-          },
-          _to_moorage_id: {
-            type: "integer",
-            minimum: 1,
-          },
+          _from_moorage_id: { type: "integer", minimum: 1 },
+          _to_moorage_id: { type: "integer", minimum: 1 },
           tags: {
             type: ["array", "null"],
-            items: {
-              type: "string",
-            },
+            items: { type: "string" },
           },
         },
       },
     },
+    */
   },
   {
     name: "get_log",
@@ -777,7 +739,7 @@ const tools: Tool[] = [
 const server = new Server(
   {
     name: "postgsail-server",
-    version: "0.0.2",
+    version: "0.0.3",
   },
   {
     capabilities: {
@@ -797,8 +759,7 @@ const RESOURCES: Resource[] = [
   {
     uri: "postgsail://postgsail_overview",
     name: "PostgSail Overview",
-    description:
-      "Core concepts and data model structure of PostgSail",
+    description: "Core concepts and data model structure of PostgSail",
     mimeType: "application/json",
   },
   {
@@ -829,29 +790,17 @@ const PROMPTS = {
       "🛥️ Get current vessel systems status including battery charge, voltage, environmental sensors (temperature, humidity, pressure), depth, wind conditions, and online/offline status from the monitoring view.",
     arguments: [],
   },
-  "stay-duration-analysis": {
-    name: "stay-duration-analysis",
+  "stays-analysis": {
+    name: "stays-analysis",
     description:
-      "📍 Analyze moorage stays by duration for a specific month, showing which anchorages, docks, or mooring buoys the vessel used longest, with total time spent at each location.",
-    arguments: [
-      {
-        name: "month",
-        description: "Month to analyze stay duration for (YYYY-MM format)",
-        required: true,
-      },
-    ],
+      "📍 Analyze stays by duration, showing which anchorages, docks, or mooring buoys the vessel used longest, with total time spent at each location.",
+    arguments: [],
   },
-  "anchor-stay-history": {
-    name: "anchor-stay-history",
+  "moorages-analysis": {
+    name: "moorages-analysis",
     description:
-      "⚓ List all moorages (anchorages, docks, mooring buoys) visited during a specific month, including arrival/departure times, duration, and location details from the stays table.",
-    arguments: [
-      {
-        name: "month",
-        description: "Month to retrieve stay history for (YYYY-MM format)",
-        required: true,
-      },
-    ],
+      "⚓ List all moorages (anchorages, docks, mooring buoys) visited, including arrival/departure times, duration, and location details from the stays table.",
+    arguments: [],
   },
   "last-logbook-summary": {
     name: "last-logbook-summary",
@@ -1196,11 +1145,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Handle Prompt calls
 server.setRequestHandler(GetPromptRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-
+  console.error("GetPromptRequest:", name, args);
   try {
     switch (name) {
       case "vessel-system-status":
-        const vessels = await pgsailClient.getVessel();
         return {
           description:
             "Give me a summary of {{vessel_name}}’s current systems status.",
@@ -1209,29 +1157,43 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
               role: "assistant",
               content: {
                 type: "text",
-                text: `Provide a daily briefing of my boat's systems`,
+                text: "Provide a daily briefing of my boat's systems",
               },
             },
           ],
         };
 
-      case "system-monitoring":
-        const system = await pgsailClient.getMonitoringLive();
+      case "stays-analysis":
         return {
-          description: "🔧 List any alerts or events from the vessel today.",
+          description:
+            "📍 Analyze stays by duration, showing which anchorages, docks, or mooring buoys the vessel used longest, with total time spent at each location.",
           messages: [
             {
               role: "assistant",
               content: {
                 type: "text",
-                text: `List any alerts or events from the vessel today.`,
+                text: "📍 Analyze stays by duration, showing which anchorages, docks, or mooring buoys the vessel used longest, with total time spent at each location.",
+              },
+            },
+          ],
+        };
+
+      case "moorages-analysis":
+        return {
+          description:
+            "⚓ List all moorages (anchorages, docks, mooring buoys) visited, including arrival/departure times, duration, and location details from the stays table.",
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: "⚓ List all moorages (anchorages, docks, mooring buoys) visited, including arrival/departure times, duration, and location details from the stays table.",
               },
             },
           ],
         };
 
       case "last-logbook-summary":
-        const logData = await pgsailClient.getLastLog();
         return {
           description: "Summarize my last voyage log.",
           messages: [
@@ -1239,14 +1201,13 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
               role: "assistant",
               content: {
                 type: "text",
-                text: `Summarize my last voyage log.`,
+                text: "Summarize my last voyage log.",
               },
             },
           ],
         };
 
       case "logbook-summary":
-        const logs = await pgsailClient.getLogs();
         return {
           description: "Summarize the voyage logs for the last month.",
           messages: [
@@ -1254,11 +1215,26 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
               role: "assistant",
               content: {
                 type: "text",
-                text: `Summarize the voyage logs for the last month.`,
+                text: "Summarize the voyage logs for the last month.",
               },
             },
           ],
         };
+
+      case "system-monitoring":
+        return {
+          description: "🔧 List any alerts or events from the vessel today.",
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: "List any alerts or events from the vessel today.",
+              },
+            },
+          ],
+        };
+
       default:
         throw new Error(`Unknown prompt: ${name}`);
     }
@@ -1282,52 +1258,52 @@ let resourcesMap: Map<string, any> = new Map();
  * Loads resources from the filesystem
  */
 const loadResources = async (): Promise<void> => {
-    try {
-      const resourceFiles = RESOURCES.map(res => res.uri.split('://')[1]);
-      //console.error("loadResources:", resourceFiles);
-      for (const file of resourceFiles) {
-        try {
-          const filePath = path.join('./resources', `${file}.json`);
-          console.error("loadResources file:", filePath);
-          const resourceName = filePath.replace(/_/g, '-');
-          const content = await fs.readFile(resourceName, 'utf-8');
+  try {
+    const resourceFiles = RESOURCES.map((res) => res.uri.split("://")[1]);
+    //console.error("loadResources:", resourceFiles);
+    for (const file of resourceFiles) {
+      try {
+        const filePath = path.join("./resources", `${file}.json`);
+        console.error("loadResources file:", filePath);
+        const resourceName = filePath.replace(/_/g, "-");
+        const content = await fs.readFile(resourceName, "utf-8");
 
-          resourcesMap.set(`postgsail://${file}`, JSON.parse(content));
-        } catch (error: any) {
-          console.error(`Failed to load resource ${file}:`, error.message);
-        }
+        resourcesMap.set(`postgsail://${file}`, JSON.parse(content));
+      } catch (error: any) {
+        console.error(`Failed to load resource ${file}:`, error.message);
       }
-    } catch (error: any) {
-      console.error('Failed to load resources directory:', error.message);
     }
+  } catch (error: any) {
+    console.error("Failed to load resources directory:", error.message);
   }
+};
 /**
  * Loads resources from the web
  */
 const loadResources_web = async (): Promise<void> => {
-    try {
-      const resourceFiles = RESOURCES.map(res => res.uri.split('://')[1]);
-      //console.error("loadResources:", resourceFiles);
-      for (const file of resourceFiles) {
-        try {
-          const resourceName = file.replace(/_/g, '-');
-          const url = `https://openplotter.cloud/resources/${resourceName}.json`;
-          console.error("loadResources_web file:", url);
-          const fetchResult = await fetch(url)
+  try {
+    const resourceFiles = RESOURCES.map((res) => res.uri.split("://")[1]);
+    //console.error("loadResources:", resourceFiles);
+    for (const file of resourceFiles) {
+      try {
+        const resourceName = file.replace(/_/g, "-");
+        const url = `https://openplotter.cloud/resources/${resourceName}.json`;
+        console.error("loadResources_web file:", url);
+        const fetchResult = await fetch(url);
 
-          if (!fetchResult.ok) {
-            throw new Error(`Download failed: ${JSON.stringify(fetchResult)}`)
-          }
-          const content = await fetchResult.text();
-          resourcesMap.set(`postgsail://${file}`, JSON.parse(content));
-        } catch (error: any) {
-          console.error(`Failed to load resource ${file}:`, error.message);
+        if (!fetchResult.ok) {
+          throw new Error(`Download failed: ${JSON.stringify(fetchResult)}`);
         }
+        const content = await fetchResult.text();
+        resourcesMap.set(`postgsail://${file}`, JSON.parse(content));
+      } catch (error: any) {
+        console.error(`Failed to load resource ${file}:`, error.message);
       }
-    } catch (error: any) {
-      console.error('Failed to load resources directory:', error.message);
     }
+  } catch (error: any) {
+    console.error("Failed to load resources directory:", error.message);
   }
+};
 
 loadResources_web();
 
