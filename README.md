@@ -13,3 +13,12 @@ OR
 * Install Claude App.
 * Settings -> Extensions -> Advanced settings -> Extension Developer
 * Install Extension...
+
+## Key Features I Can Help Users With
+
+* Daily vessel summaries (current status, weather, systems)
+* Voyage planning (reviewing past trips, moorage information)
+* System monitoring (battery, solar, sensors, connectivity)
+* Historical analysis (tracking patterns, favorite destinations)
+* Data export (for external navigation tools)
+* Maintenance tracking (through stay notes and logs)
