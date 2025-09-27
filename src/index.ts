@@ -733,13 +733,23 @@ const tools: Tool[] = [
     },
   },
   */
+  {
+    name: "get_initial_context",
+    description:
+      "Get comprehensive PostgSail context and documentation to understand available data and usage patterns",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
 ];
 
 // MCP Server setup
 const server = new Server(
   {
     name: "postgsail-server",
-    version: "0.0.3",
+    version: "0.0.4",
   },
   {
     capabilities: {
@@ -1120,6 +1130,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: JSON.stringify(mapping[0], null, 2),
+            },
+          ],
+        };
+
+      case "get_initial_context":
+        const contextData: Record<string, any> = {
+          server_info: {
+            name: "postgsail-server",
+            version: "0.0.4",
+            loaded_at: new Date().toISOString(),
+            description:
+              "PostgSail MCP Server - Provides AI agents with read only access to marine vessel data",
+          },
+        };
+        // Load all available resources
+        for (const [uri, content] of resourcesMap.entries()) {
+          const resourceKey = uri.replace("postgsail://", "");
+          contextData[resourceKey] = content;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(contextData, null, 2),
             },
           ],
         };
