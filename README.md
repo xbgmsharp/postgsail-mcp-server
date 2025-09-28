@@ -10,8 +10,6 @@
     PostgSail is an open-source alternative to traditional vessel data management!
     <br/>
     <br/>
-    <a href="#demo">View Demo</a>
-    .
     <a href="https://xbgmsharp.github.io/postgsail/">Website</a>
     .
     <a href="https://github.com/sponsors/xbgmsharp">Sponsors</a>
