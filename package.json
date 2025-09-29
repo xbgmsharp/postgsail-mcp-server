@@ -1,26 +1,24 @@
 {
   "name": "postgsail-mcp-server",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsc src/index.ts",
-    "mcp": "npx @anthropic-ai/mcpb pack"
+    "pack": "npx @anthropic-ai/mcpb pack"
   },
-  "keywords": [ "signalk", "postgsail" ],
+  "keywords": [ "signalk", "postgsail", "mcp", "model context protocol" ],
   "author": "Francois Lacroix <xbgmsharp@gmail.com>",
   "license": "ISC",
-  "description": "",
+  "description": "A Model Context Protocol (MCP) server that provides AI agents with read-only access to PostgSail marine data systems.",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.18.0",
-    "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "@modelcontextprotocol/sdk": "^1.18.0"
   },
   "devDependencies": {
     "@anthropic-ai/mcpb": "^1.1.0",
     "@modelcontextprotocol/inspector": "^0.14.3",
-    "@types/node": "^24.0.3",
+    "@types/node": "^20.19.17",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
