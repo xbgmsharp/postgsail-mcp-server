@@ -1,0 +1,91 @@
+{
+    "dxt_version": "0.1",
+    "name": "postgsail-mcp-server",
+    "display_name": "PostgSail MCP Extension",
+    "version": "0.0.4",
+    "description": "Provides access to PostgSail APIs",
+    "long_description": "A Model Context Protocol (MCP) server that provides AI agents with read-only access to PostgSail marine data systems. This server enables Claude and other AI assistants to search and navigate logs, moorages, and stays, monitor and analyze your boat all in one place.",
+    "author": {
+        "name": "Francois Lacroix",
+        "email": "xbgmsharp@gmail.com"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/xbgmsharp/postgsail-mcp-server.git"
+    },
+    "homepage": "https://xbgmsharp.github.io/postgsail/",
+    "documentation": "https://github.com/xbgmsharp/postgsail",
+    "support": "https://discord.gg/uuZrwz4dCS",
+    "icon": "android-chrome-192x192.png",
+    "server": {
+        "type": "node",
+        "entry_point": "dist/index.js",
+        "mcp_config": {
+            "command": "node",
+            "args": [
+                "${__dirname}/dist/index.js"
+            ],
+            "env": {
+                "POSTGSAIL_URL": "https://api.openplotter.cloud/",
+                "POSTGSAIL_TOKEN": "${user_config.token}",
+                "POSTGSAIL_VERBOSE": "${user_config.verbose_logging}",
+                "POSTGSAIL_DEBUG": "${user_config.debug_mode}"
+            }
+        }
+    },
+    "tools": [
+        {
+            "name": "get_initial_context",
+            "description": "Get comprehensive PostgSail context and documentation to understand available data and usage patterns"
+        }
+    ],
+    "tools_generated": false,
+    "prompts": [
+        {
+            "name": "vessel-system-status",
+            "description": "Get current vessel systems status",
+            "text": "provide a summary of the current status of the vessel systems including battery levels, tank levels, and weather conditions. Highlight any critical alerts or warnings that need immediate attention."
+        }
+    ],
+    "prompts_generated": true,
+    "compatibility": {
+        "claude_desktop": ">=0.10.0",
+        "platforms": [
+            "darwin",
+            "win32",
+            "linux"
+        ],
+        "runtimes": {
+            "node": ">=20.0.0"
+        }
+    },
+    "user_config": {
+        "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "Token (obtain free from https://iot.openplotter.cloud/)",
+            "required": true,
+            "sensitive": true
+        },
+        "verbose_logging": {
+            "type": "boolean",
+            "title": "Verbose Logging",
+            "description": "Enable detailed logging output",
+            "default": false,
+            "required": false
+        },
+        "debug_mode": {
+            "type": "string",
+            "title": "Debug Mode",
+            "description": "Set debug level (example of non-sensitive string)",
+            "default": "info",
+            "required": false
+        }
+    },
+    "keywords": [
+        "signalk",
+        "postgsail",
+        "mcp"
+    ],
+    "license": "ISC"
+}
