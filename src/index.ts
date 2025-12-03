@@ -1322,7 +1322,7 @@ const loadResources_web = async (): Promise<void> => {
     for (const file of resourceFiles) {
       try {
         const resourceName = file.replace(/_/g, "-");
-        const url = `https://openplotter.cloud/resources/${resourceName}.json`;
+        const url = `https://openplotter.cloud/resources/${resourceName}.toon`;
         console.error("loadResources_web file:", url);
         const fetchResult = await fetch(url);
 
