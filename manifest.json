@@ -16,7 +16,7 @@
     "homepage": "https://xbgmsharp.github.io/postgsail/",
     "documentation": "https://github.com/xbgmsharp/postgsail",
     "support": "https://discord.gg/uuZrwz4dCS",
-    "icon": "android-chrome-192x192.png",
+    "icon": "android-chrome-512x512.png",
     "server": {
         "type": "node",
         "entry_point": "dist/index.js",
