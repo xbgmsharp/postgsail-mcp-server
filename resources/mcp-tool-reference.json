@@ -1,0 +1,319 @@
+{
+  "description": "PostgSail REST API endpoints and RPC functions reference",
+  "base_url": "https://api.openplotter.cloud/",
+  "endpoints": {
+    "vessel_management": {
+      "get_vessels": {
+        "endpoint": "/vessels_view",
+        "method": "GET",
+        "purpose": "Get vessel fleet status with online/offline indicators",
+        "response_format": "Array of vessel objects with status",
+        "use_when": "Dashboard overview, fleet monitoring"
+      },
+      "get_vessel_details": {
+        "endpoint": "/rpc/vessel_fn",
+        "method": "GET",
+        "purpose": "Get comprehensive vessel information including current position",
+        "response_format": "Single vessel object with metadata and location",
+        "use_when": "Detailed vessel information, current status"
+      },
+      "get_vessel_polar": {
+        "endpoint": "/metadata_ext?select=polar,polar_updated_at",
+        "method": "GET",
+        "purpose": "Get vessel polar performance data",
+        "response_format": "Polar data in CSV format",
+        "use_when": "Performance analysis, routing optimization"
+      },
+      "get_vessel_mapping": {
+        "endpoint": "/metadata?select=configuration,available_keys",
+        "method": "GET",
+        "purpose": "Get SignalK path mapping configuration",
+        "response_format": "Configuration object with path mappings",
+        "use_when": "System configuration, sensor setup"
+      }
+    },
+    "logbook_management": {
+      "get_logs": {
+        "endpoint": "/logs_view?limit=5",
+        "method": "GET",
+        "purpose": "Get formatted trip listings with moorage names",
+        "response_format": "Array of log entries with formatted data",
+        "use_when": "Trip history, logbook overview",
+        "pagination": "Use limit and offset parameters"
+      },
+      "get_log": {
+        "endpoint": "/log_view?id=eq.{id}",
+        "method": "GET",
+        "purpose": "Get individual trip details",
+        "response_format": "Single log entry with full details",
+        "use_when": "Trip details, specific log analysis"
+      },
+      "get_logs_geojson": {
+        "endpoint": "/logs_geojson_view?select=geojson&geojson=not.is.null&order=starttimestamp.desc&limit={limit}&offset={offset}",
+        "method": "GET",
+        "purpose": "Get trip tracks as GeoJSON for mapping",
+        "response_format": "GeoJSON LineString features",
+        "use_when": "Map visualization, track display",
+        "headers": {
+          "Prefer": "count=exact"
+        }
+      },
+      "export_log_gpx": {
+        "endpoint": "/rpc/export_logbook_gpx_trip_fn",
+        "method": "POST",
+        "purpose": "Export trip as GPX track",
+        "payload": {
+          "_id": "log_id"
+        },
+        "response_format": "GPX XML data",
+        "headers": {
+          "Accept": "text/xml"
+        },
+        "use_when": "GPS device import, navigation software"
+      },
+      "export_log_geojson": {
+        "endpoint": "/rpc/export_logbook_geojson_trip_fn",
+        "method": "POST",
+        "purpose": "Export trip as GeoJSON track",
+        "payload": {
+          "_id": "log_id"
+        },
+        "response_format": "GeoJSON LineString",
+        "use_when": "Web mapping, GIS analysis"
+      },
+      "export_log_kml": {
+        "endpoint": "/rpc/export_logbook_kml_trip_fn",
+        "method": "POST",
+        "purpose": "Export trip as KML for Google Earth",
+        "payload": {
+          "_id": "log_id"
+        },
+        "response_format": "KML XML data",
+        "use_when": "Google Earth visualization"
+      }
+    },
+    "moorage_management": {
+      "get_moorages": {
+        "endpoint": "/moorages_view?limit=5",
+        "method": "GET",
+        "purpose": "Get moorage summary with stay statistics",
+        "response_format": "Array of moorages with arrival/departure counts",
+        "use_when": "Harbor overview, location management"
+      },
+      "get_moorage": {
+        "endpoint": "/moorage_view?id=eq.{id}",
+        "method": "GET",
+        "purpose": "Get individual moorage details",
+        "response_format": "Single moorage with full details",
+        "use_when": "Location details, moorage information"
+      },
+      "get_moorages_geojson": {
+        "endpoint": "/rpc/export_moorages_geojson_fn",
+        "method": "POST",
+        "purpose": "Export all moorages as GeoJSON points",
+        "response_format": "GeoJSON Point features",
+        "use_when": "Map visualization, location overview"
+      },
+      "get_moorage_stays": {
+        "endpoint": "/moorages_stays_view?id=eq.{id}",
+        "method": "GET",
+        "purpose": "Get stay history for specific moorage",
+        "response_format": "Array of stays at moorage",
+        "use_when": "Location history, stay analysis"
+      },
+      "get_moorage_arrivals_departures": {
+        "endpoint": "/logs_view?or=(_from_moorage_id.eq.{id},_to_moorage_id.eq.{id})",
+        "method": "GET",
+        "purpose": "Get trips to/from specific moorage",
+        "response_format": "Array of related log entries",
+        "use_when": "Moorage traffic analysis"
+      }
+    },
+    "stay_management": {
+      "get_stays": {
+        "endpoint": "/stays_view?limit=5",
+        "method": "GET",
+        "purpose": "Get stay history with moorage links",
+        "response_format": "Array of stays with duration and location",
+        "use_when": "Time analysis, location patterns"
+      },
+      "get_stay": {
+        "endpoint": "/stay_view?id=eq.{id}",
+        "method": "GET",
+        "purpose": "Get individual stay details",
+        "response_format": "Single stay with full details",
+        "use_when": "Stay analysis, time tracking"
+      },
+      "get_stays_map": {
+        "endpoint": "/stays_geojson_view?select=geojson&geojson=not.is.null&limit={limit}&offset={offset}",
+        "method": "GET",
+        "purpose": "Get stays as GeoJSON for mapping",
+        "response_format": "GeoJSON Point features",
+        "headers": {
+          "Prefer": "count=exact"
+        },
+        "use_when": "Map visualization, stay locations"
+      }
+    },
+    "monitoring": {
+      "get_monitoring": {
+        "endpoint": "/monitoring_view",
+        "method": "GET",
+        "purpose": "Get current vessel status and sensor readings",
+        "response_format": "Current metrics with offline status",
+        "use_when": "Real-time monitoring, system status"
+      },
+      "get_monitoring_live": {
+        "endpoint": "/monitoring_live",
+        "method": "GET",
+        "purpose": "Get live monitoring with active track/stay data",
+        "response_format": "Enhanced monitoring with GeoJSON tracks",
+        "use_when": "Live tracking, current activity"
+      },
+      "get_monitoring_history": {
+        "endpoint": "/rpc/monitoring_history_fn",
+        "method": "POST",
+        "purpose": "Get historical sensor data",
+        "payload": "Date range and sensor parameters",
+        "response_format": "Time series data",
+        "use_when": "Historical analysis, trend monitoring"
+      }
+    },
+    "statistics": {
+      "get_stats_logs": {
+        "endpoint": "/stats_logs_view",
+        "method": "GET",
+        "purpose": "Get trip statistics summary",
+        "auth_required": "user_role",
+        "response_format": "Aggregated trip statistics",
+        "use_when": "Performance overview, trip analysis"
+      },
+      "get_stats_moorages": {
+        "endpoint": "/stats_moorages_view",
+        "method": "GET",
+        "purpose": "Get moorage usage statistics",
+        "auth_required": "user_role",
+        "response_format": "Moorage visit statistics",
+        "use_when": "Location analysis, usage patterns"
+      },
+      "get_stats": {
+        "endpoint": "/rpc/stats_fn",
+        "method": "POST",
+        "purpose": "Get custom statistics with date range",
+        "auth_required": "user_role",
+        "payload": "Date range parameters",
+        "response_format": "Custom aggregated statistics",
+        "use_when": "Custom analysis, reporting"
+      }
+    },
+    "system": {
+      "get_settings": {
+        "endpoint": "/rpc/settings_fn",
+        "method": "GET",
+        "purpose": "Get user profile and preferences",
+        "auth_required": "user_role",
+        "response_format": "User settings object",
+        "use_when": "Profile management, configuration"
+      },
+      "get_badges": {
+        "endpoint": "/badges_view",
+        "method": "GET",
+        "purpose": "Get user achievements and badges",
+        "auth_required": "user_role",
+        "response_format": "Array of earned badges",
+        "use_when": "Gamification, achievements"
+      },
+      "get_event_logs": {
+        "endpoint": "/eventlogs_view",
+        "method": "GET",
+        "purpose": "Get system event log entries",
+        "auth_required": "user_role",
+        "response_format": "Array of system events",
+        "use_when": "System monitoring, troubleshooting"
+      },
+      "get_total_info": {
+        "endpoint": "/total_info_view",
+        "method": "GET",
+        "purpose": "Get overall system totals",
+        "auth_required": "user_role",
+        "response_format": "Summary statistics object",
+        "use_when": "Dashboard overview, system summary"
+      },
+      "get_logs_by_month": {
+        "endpoint": "/rpc/logs_by_month_fn",
+        "method": "GET",
+        "purpose": "Get trip activity by month",
+        "auth_required": "user_role",
+        "response_format": "Monthly activity data",
+        "use_when": "Activity charts, seasonal analysis"
+      }
+    },
+    "timelapse": {
+      "get_timelapse": {
+        "endpoint": "/rpc/timelapse_fn",
+        "method": "POST",
+        "purpose": "Generate timelapse visualization data",
+        "auth_required": "user_role",
+        "payload": "Vessel and time parameters",
+        "response_format": "Timelapse track data",
+        "use_when": "Animation, track replay"
+      },
+      "get_timelapse_trips": {
+        "endpoint": "/rpc/export_logbooks_geojson_point_trips_fn",
+        "method": "GET",
+        "purpose": "Get trip points for timelapse animation",
+        "auth_required": "user_role",
+        "response_format": "GeoJSON Point sequence",
+        "use_when": "Trip animation, replay visualization"
+      }
+    }
+  },
+  "log_image_exports": {
+    "export_log_png": {
+      "endpoint": "https://gis.openplotter.cloud/log_{vessel_id}_{log_id}.png",
+      "method": "GET",
+      "purpose": "Export trip as PNG for visualization",
+      "request-uri-regexp": "^/log_(\\w+)_(\\d+).png$",
+      "response_format": "PNG image data",
+      "use_when": "image visualization"
+    },
+    "export_logs_png": {
+      "endpoint": "https://gis.openplotter.cloud/logs_{vessel_id}_{log_id}.png",
+      "method": "GET",
+      "purpose": "Export all logs as PNG for visualization",
+      "request-uri-regexp": "^/logs_(\\w+)_(\\d+).png$",
+      "response_format": "PNG image data",
+      "use_when": "image visualization"
+    },
+    "export_trip_png": {
+      "endpoint": "https://gis.openplotter.cloud/trip_{vessel_id}_{log_id}_{log_id}.png",
+      "method": "GET",
+      "purpose": "Export trip as PNG for visualization",
+      "request-uri-regexp": "^/trip_((\\w+)_(\\d+)_(\\d+)).png$",
+      "response_format": "PNG image data",
+      "use_when": "image visualization"
+    },
+    "export_trip_sat_png": {
+      "endpoint": "https://gis.openplotter.cloud/trip_{vessel_id}_{log_id}_{log_id}_sat.png",
+      "method": "GET",
+      "purpose": "Export trip as PNG for satellite visualization",
+      "request-uri-regexp": "^/trip_((\\w+)_(\\d+)_(\\d+))_sat.png$",
+      "response_format": "PNG image data",
+      "use_when": "image satellite visualization"
+    }
+  },
+  "efficiency_guidelines": {
+    "pagination": "Use limit/offset for large datasets",
+    "caching": "Cache view results - they update less frequently than raw tables",
+    "filtering": "Use PostgREST query parameters for filtering",
+    "geojson": "GeoJSON endpoints are optimized for mapping applications",
+    "rpc_functions": "RPC functions handle complex operations efficiently"
+  },
+  "response_formats": {
+    "json": "application/json - Default format",
+    "geojson": "application/geo+json - Spatial data",
+    "csv": "text/csv - Bulk data export",
+    "xml": "text/xml - GPX/KML exports",
+    "png": "image/png - Trip(s) images"
+  }
+}

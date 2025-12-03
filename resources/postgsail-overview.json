@@ -1,0 +1,87 @@
+{
+  "title": "PostgSail Overview",
+  "sections": {
+    "what_is_postgsail": {
+      "title": "What is PostgSail?",
+      "content": "PostgSail is an open-source PostgreSQL-based marine vessel tracking and monitoring platform. It ingests SignalK sensor data from vessels through a plugin and transforms it into structured logbook entries, stays, and moorages using TimescaleDB, PostGIS, and MobilityDB. The system provides comprehensive vessel analytics, trip logging, and real-time monitoring capabilities through a REST API powered by PostgREST."
+    },
+    "core_concepts": {
+      "title": "Core Concepts",
+      "data_organization": {
+        "vessels": "Each vessel is identified by vessel_id and contains all associated telemetry, trips, and metadata",
+        "metrics": "Raw sensor data stored in TimescaleDB hypertables with timestamps and SignalK paths",
+        "logbook": "Processed trip records with MobilityDB trajectories and calculated statistics",
+        "stays": "Stationary periods when vessels are moored, anchored, or docked",
+        "moorages": "Named locations automatically created by clustering nearby stays within 300m"
+      },
+      "signalk_paths": {
+        "description": "Hierarchical data structure using dot notation following SignalK specification",
+        "categories": {
+          "navigation": "position, heading, speedOverGround, courseOverGroundTrue",
+          "electrical": "batteries.*.voltage, batteries.*.stateOfCharge, solar.*.panelPower",
+          "propulsion": "engines.*.temperature, fuel.*.currentLevel",
+          "environment": "wind.speedTrue, wind.directionTrue, depth.belowTransducer, water.temperature",
+          "design": "beam, length, displacement",
+          "sensors": "gps, ais, radar configurations",
+          "steering": "autopilot, rudder angle",
+          "tanks": "fuel.*.currentLevel, freshWater.*.currentLevel",
+          "communication": "radio, internet connectivity"
+        }
+      }
+    },
+    "units_and_formats": {
+      "title": "Units and Formats",
+      "description": "PostgSail follows SignalK SI unit conventions with PostgreSQL data types",
+      "units": {
+        "temperature": "Kelvin (K) - add 273.15 to Celsius",
+        "angles": "Radians - multiply by 57.2958 for degrees",
+        "speed": "Meters per second (m/s) - multiply by 1.94384 for knots",
+        "pressure": "Pascals (Pa) - divide by 100 for millibars",
+        "distance": "Meters (m) - divide by 1852 for nautical miles",
+        "time": "UTC timestamps with timezone (timestamptz)",
+        "duration": "PostgreSQL interval type in ISO 8601 format"
+      }
+    },
+    "data_processing": {
+      "title": "Data Processing Pipeline",
+      "flow": {
+        "ingestion": "SignalK plugin sends metrics via HTTP POST to PostgREST API",
+        "triggers": "Database triggers process incoming metrics and detect vessel state changes",
+        "background_jobs": "pg_cron schedules processing of logbook entries, geocoding, and notifications",
+        "mobilitydb": "Trajectory data aggregated into spatiotemporal sequences with intelligent sampling",
+        "notifications": "Multi-channel alerts via email, Pushover, and Telegram"
+      }
+    },
+    "data_access_methods": {
+      "title": "Data Access Methods",
+      "methods": {
+        "rest_api": "Auto-generated REST API via PostgREST with JWT authentication and row-level security",
+        "openapi": "Complete API documentation available in OpenAPI/Swagger format",
+        "direct_sql": "Direct PostgreSQL access for advanced queries and analytics",
+        "export_formats": "GeoJSON, CSV, and GPX export functions for trip data"
+      }
+    },
+    "context_and_sources": {
+      "title": "Context and Sources",
+      "concepts": {
+        "logbook": "Trip records with MobilityDB trajectories, calculated statistics (distance, duration, speeds), and temporal sequences of sensor data",
+        "moorages": "Named locations automatically created by spatial clustering of stays within 300m radius, enriched with reverse geocoding and aggregate visit statistics",
+        "stays": "Stationary periods when vessel status is 'moored', 'anchored', or 'docked', with precise arrival/departure timestamps and duration calculations",
+        "metrics": "Raw telemetry data from SignalK stored in TimescaleDB hypertables, including sensor values, timestamps, and source device information",
+        "metadata": "Vessel configuration including SignalK path mappings, vessel specifications, and monitoring settings"
+      }
+    },
+    "architecture": {
+      "title": "System Architecture",
+      "components": {
+        "database": "PostgreSQL 16+ with TimescaleDB, PostGIS, MobilityDB, and pg_cron extensions",
+        "api_layer": "PostgREST for auto-generated REST API with JWT authentication",
+        "processing": "Database triggers and background jobs for real-time and batch processing",
+        "integrations": "Python functions for external services (geocoding, notifications, weather)",
+        "frontend": "Vue.js SPA with Vuestic UI components",
+        "monitoring": "Grafana dashboards and Telegram bot integration",
+        "modelcontextprotocol": "Model Context Protocol (MCP) server enabling AI agents to access PostgSail APIs in read-only mode for enhanced interaction and data retrieval"
+      }
+    }
+  }
+}
