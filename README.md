@@ -70,7 +70,7 @@ You can ask anything related to PostgSail all readonly API endpoint are availabl
 
 ## License
 
-MIT License - see LICENSE file for details.
+Apache License - see LICENSE file for details.
 
 ## Contributing
 
