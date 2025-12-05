@@ -10,10 +10,15 @@
     "pack": "npx @anthropic-ai/mcpb pack"
   },
   "repository": {
-      "type": "git",
-      "url": "https://github.com/xbgmsharp/postgsail-mcp-server.git"
+    "type": "git",
+    "url": "https://github.com/xbgmsharp/postgsail-mcp-server.git"
   },
-  "keywords": [ "signalk", "postgsail", "mcp", "model context protocol" ],
+  "keywords": [
+    "signalk",
+    "postgsail",
+    "mcp",
+    "model context protocol"
+  ],
   "author": "Francois Lacroix <xbgmsharp@gmail.com>",
   "license": "ISC",
   "description": "A Model Context Protocol (MCP) server that provides AI agents with read-only access to PostgSail marine data systems.",
