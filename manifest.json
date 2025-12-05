@@ -1,8 +1,8 @@
 {
     "dxt_version": "0.1",
-    "name": "postgsail-mcp-server",
+    "name": "@xbgmsharp/postgsail-mcp-server",
     "display_name": "PostgSail MCP Extension",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "description": "Provides access to PostgSail APIs",
     "long_description": "A Model Context Protocol (MCP) server that provides AI agents with read-only access to PostgSail marine data systems. This server enables Claude and other AI assistants to search and navigate logs, moorages, and stays, monitor and analyze your boat all in one place.",
     "author": {
