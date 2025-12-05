@@ -1,7 +1,6 @@
 src/
 Dockerfile
 .dockerignore
-.gitignore
-.github/
-.git/
+.npmignore
+.git*
 node_modules/@anthropic-ai/mcpb
