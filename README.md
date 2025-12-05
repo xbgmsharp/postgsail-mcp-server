@@ -62,6 +62,12 @@ The server exposes these static reference resources:
 
 **Note:** While these resources can be accessed individually via the MCP resource protocol, the `get_initial_context()` tool provides a more convenient way to access all reference materials in a single call, making it the recommended approach for AI agents to understand the system.
 
+## Examples
+You can ask anything related to PostgSail all readonly API endpoint are available, eg: Logbook, Moorages, Stays, Monitoring. A few examples:
+  * `Provide a daily briefing of <boat_name> systems`
+  * `Summarize my last trip`
+  * `Summarize my summer sailing voyage`
+
 ## License
 
 MIT License - see LICENSE file for details.
