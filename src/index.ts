@@ -80,7 +80,7 @@ const tools: Tool[] = [
     outputSchema: {
       type: "object",
       properties: {
-        type: "object",
+        type: {},
         required: [
           "name",
           "geojson",
@@ -299,7 +299,7 @@ const tools: Tool[] = [
     outputSchema: {
       type: "object",
       properties: {
-        type: "object",
+        type: {},
         required: ["time", "offline", "data", "geojson", "name", "status"],
         properties: {
           time: {
@@ -645,7 +645,7 @@ const tools: Tool[] = [
     outputSchema: {
       type: "object",
       properties: {
-        type: "object",
+        type: {},
         required: ["configuration"],
         properties: {
           configuration: {
@@ -672,7 +672,6 @@ const tools: Tool[] = [
             additionalProperties: true,
           },
         },
-        additionalProperties: true,
       },
     },
   },
