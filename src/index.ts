@@ -748,7 +748,7 @@ const tools: Tool[] = [
 const server = new Server(
   {
     name: "postgsail-server",
-    version: "0.0.4",
+    version: "0.0.5",
   },
   {
     capabilities: {
@@ -1042,16 +1042,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
-
+      */
       case "get_vessel_stats":
         let statsData;
-        if (args.type === "logs") {
+        if (args?.type === "logs") {
           statsData = await pgsailClient.getStatsLogs();
-        } else if (args.type === "moorages") {
+        } else if (args?.type === "moorages") {
           statsData = await pgsailClient.getStatsMoorages();
         } else {
           statsData = await pgsailClient.getStats({
-            timeframe: args.timeframe || "all",
+            timeframe: args?.timeframe || "all",
           });
         }
         return {
@@ -1062,7 +1062,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
-
+      /*
       case "get_timelapse_data":
         if (!args.startDate || !args.endDate) {
           throw new Error("Start date and end date are required");
@@ -1137,7 +1137,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const contextData: Record<string, any> = {
           server_info: {
             name: "postgsail-server",
-            version: "0.0.4",
+            version: "0.0.5",
             loaded_at: new Date().toISOString(),
             description:
               "PostgSail MCP Server - Provides AI agents with read only access to marine vessel data",
@@ -1269,6 +1269,19 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
           ],
         };
 
+      case "stats-summary":
+        return {
+          description: "Summarize my stats.",
+          messages: [
+            {
+              role: "assistant",
+              content: {
+                type: "text",
+                text: "for which period? last month? this year? this summer?",
+              },
+            },
+          ],
+        };
       default:
         throw new Error(`Unknown prompt: ${name}`);
     }
