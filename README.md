@@ -31,6 +31,8 @@
 
 Model Context Protocol (MCP) server tailored for PostgSail. that provides AI agents with read-only access to PostgSail marine data systems. This server enables Claude and other AI assistants to search and navigate logs, moorages, and stays, monitor and analyze your boat all in one place.
 
+https://github.com/user-attachments/assets/162dac63-8f80-4e46-9357-1033b6b6c78b
+
 ## Installation
 
 * Install Claude App
@@ -52,6 +54,12 @@ OR
 * Data export (for external navigation tools)
 * Maintenance tracking (through stay notes and logs)
 
+## Examples
+You can ask anything related to PostgSail all readonly API endpoint are available, eg: Logbook, Moorages, Stays, Monitoring. A few examples:
+  * `Provide a daily briefing of <boat_name> systems`
+  * `Summarize my last trip`
+  * `Summarize my summer sailing voyage`
+
 ## Available Resources
 
 The server exposes these static reference resources:
@@ -61,12 +69,6 @@ The server exposes these static reference resources:
 - `postgsail://mcp_tool_reference` - Reference for available MCP tools and usage patterns
 
 **Note:** While these resources can be accessed individually via the MCP resource protocol, the `get_initial_context()` tool provides a more convenient way to access all reference materials in a single call, making it the recommended approach for AI agents to understand the system.
-
-## Examples
-You can ask anything related to PostgSail all readonly API endpoint are available, eg: Logbook, Moorages, Stays, Monitoring. A few examples:
-  * `Provide a daily briefing of <boat_name> systems`
-  * `Summarize my last trip`
-  * `Summarize my summer sailing voyage`
 
 ## License
 
