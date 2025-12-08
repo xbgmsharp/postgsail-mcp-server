@@ -20,7 +20,7 @@
     "model context protocol"
   ],
   "author": "Francois Lacroix <xbgmsharp@gmail.com>",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "description": "A Model Context Protocol (MCP) server that provides AI agents with read-only access to PostgSail marine data systems.",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.24.3"
