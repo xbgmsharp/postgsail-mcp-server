@@ -13,7 +13,7 @@ class PostgSailClient {
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "User-Agent": "postgsail.mcp v0.0.4",
+      "User-Agent": "postgsail.mcp v0.0.5",
       ...(options.headers as Record<string, string>),
     };
 
