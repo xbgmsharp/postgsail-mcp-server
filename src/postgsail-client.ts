@@ -1,3 +1,11 @@
+const stayTypeToId: Record<string, number> = {
+  All: -1, // Use -1 or omit to fetch all types
+  Unknown: 1,
+  Anchor: 2,
+  Dock: 4,
+  "Mooring Buoy": 3,
+};
+
 // PostgSail API Client
 class PostgSailClient {
   private baseURL: string;
@@ -73,8 +81,20 @@ class PostgSailClient {
   }
 
   // Logs methods
-  async getLogs() {
-    return this.request("logs_view?limit=5");
+  async getLogs({
+    start_date,
+    end_date,
+  }: { start_date?: string; end_date?: string } = {}) {
+    let query = "logs_view?limit=50";
+    if (start_date || end_date) {
+      const startedFilter = [];
+      if (start_date) startedFilter.push(`gte.${start_date}`);
+      if (end_date) startedFilter.push(`lte.${end_date}`);
+      if (startedFilter.length > 0) {
+        query += `&started=${startedFilter.join("&")}`;
+      }
+    }
+    return this.request(query);
   }
 
   async getLastLog() {
@@ -125,8 +145,20 @@ class PostgSailClient {
   }
 
   // Moorages methods
-  async getMoorages() {
-    return this.request("moorages_view?limit=5");
+  async getMoorages({
+    default_stay_type = "All",
+  }: {
+    default_stay_type?: string;
+  } = {}) {
+    let query = "moorages_view?limit=50";
+
+    // Use the existing mapping
+    const stayTypeId = stayTypeToId[default_stay_type];
+    if (stayTypeId !== undefined && stayTypeId !== -1) {
+      query += `&default_stay_id=eq.${stayTypeId}`;
+    }
+
+    return this.request(query);
   }
 
   async getMoorage(id: string) {
@@ -148,8 +180,34 @@ class PostgSailClient {
   }
 
   // Stays methods
-  async getStays() {
-    return this.request("stays_view?limit=5");
+  async getStays({
+    start_date,
+    end_date,
+    stay_type = "All",
+  }: {
+    start_date?: string;
+    end_date?: string;
+    stay_type?: string;
+  } = {}) {
+    let query = "stays_view?limit=50";
+
+    // Add date filters
+    if (start_date || end_date) {
+      const arrivedFilter = [];
+      if (start_date) arrivedFilter.push(`gte.${start_date}`);
+      if (end_date) arrivedFilter.push(`lte.${end_date}`);
+      if (arrivedFilter.length > 0) {
+        query += `&arrived=${arrivedFilter.join("&")}`;
+      }
+    }
+
+    // Add stay_type filter
+    const stayTypeId = stayTypeToId[stay_type];
+    if (stayTypeId !== undefined && stayTypeId !== -1) {
+      query += `&stayed_at_id=eq.${stayTypeId}`;
+    }
+
+    return this.request(query);
   }
 
   async getStay(id: string) {
