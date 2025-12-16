@@ -17,6 +17,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ListPromptsRequestSchema,
   Tool,
   Resource,
@@ -169,7 +170,10 @@ const tools: Tool[] = [
     description: "Get a summary of voyages or logs or trips",
     inputSchema: {
       type: "object",
-      properties: {},
+      properties: {
+        start_date: { type: "string", description: "Start date (ISO format)" },
+        end_date: { type: "string", description: "End date (ISO format)" },
+      },
     },
     /*
     outputSchema: {
@@ -226,7 +230,8 @@ const tools: Tool[] = [
   },
   {
     name: "export_log_track",
-    description: "Export specific log track in various formats",
+    description:
+      "Export specific log track in various formats, gpx, geojson, kml",
     inputSchema: {
       type: "object",
       properties: {
@@ -245,7 +250,14 @@ const tools: Tool[] = [
     description: "Get a summary of all moorages/marinas/anchorages",
     inputSchema: {
       type: "object",
-      properties: {},
+      properties: {
+        default_stay_type: {
+          type: "string",
+          enum: ["All", "Unknown", "Anchor", "Dock", "Mooring Buoy"],
+          description: "Moorages Type Filter",
+          default: "All",
+        },
+      },
     },
   },
   {
@@ -275,7 +287,16 @@ const tools: Tool[] = [
     description: "Get a summary of all stays (times at anchor/dock)",
     inputSchema: {
       type: "object",
-      properties: {},
+      properties: {
+        start_date: { type: "string", description: "Start date (ISO format)" },
+        end_date: { type: "string", description: "End date (ISO format)" },
+        stay_type: {
+          type: "string",
+          enum: ["All", "Unknown", "Anchor", "Dock", "Mooring Buoy"],
+          description: "Stays Type Filter",
+          default: "All",
+        },
+      },
     },
   },
   {
@@ -675,27 +696,17 @@ const tools: Tool[] = [
       },
     },
   },
-  /*
   {
-    name: "get_vessel_stats",
-    description: "Get vessel statistics and analytics",
+    name: "get_stats",
+    description: "Get statistics data for specific timeframe",
     inputSchema: {
       type: "object",
       properties: {
-        type: {
-          type: "string",
-          enum: ["logs", "moorages", "general"],
-          description: "Type of statistics to retrieve",
-        },
-        timeframe: {
-          type: "string",
-          description:
-            "Time period for stats (e.g., 'last_month', 'this_year')",
-        },
+        start_date: { type: "string", description: "Start date (ISO format)" },
+        end_date: { type: "string", description: "End date (ISO format)" },
       },
     },
   },
-  */
   {
     name: "get_timelapse_data",
     description: "Get timelapse/track data for visualization",
@@ -771,12 +782,14 @@ const RESOURCES: Resource[] = [
     description: "Core concepts and data model structure of PostgSail",
     mimeType: "application/json",
   },
-  {
+  /*
+{
     uri: "postgsail://path-categories-guide",
     name: "SignalK Path Categories Guide",
     description: "Comprehensive reference of SignalK paths and their meanings",
     mimeType: "application/json",
   },
+*/
   {
     uri: "postgsail://mcp-tool-reference",
     name: "MCP Tool Reference",
@@ -838,6 +851,13 @@ server.setRequestHandler(ListPromptsRequestSchema, async () => {
   };
 });
 
+// Handle Resource Template calls - return empty for now
+server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
+  return {
+    resourceTemplates: [], // Return an empty array if no templates are available
+  };
+});
+
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
@@ -859,7 +879,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
 
       case "get_logs":
-        const logs = await pgsailClient.getLogs();
+        const logs = await pgsailClient.getLogs({
+          start_date: (args?.start_date as string) || undefined,
+          end_date: (args?.end_date as string) || undefined,
+        });
         if (!Array.isArray(logs)) {
           throw new Error("Invalid logbooks data");
         }
@@ -888,47 +911,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
-      /*
+
       case "get_logs_geojson":
-        const page = (args.page as number) || 1;
-        const geoJsonData = await pgsailClient.getLogsMap(page);
+        const logsGeoJSON = await pgsailClient.getLogsMap();
+        if (!Array.isArray(logsGeoJSON)) {
+          throw new Error("Invalid logs geojson data");
+        }
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(geoJsonData, null, 2),
+              text: JSON.stringify(logsGeoJSON, null, 2),
             },
           ],
         };
 
       case "export_log_track":
-        if (!args.logId || !args.format) {
-          throw new Error("Log ID and format are required");
-        }
-        let trackData;
-        if (args.format === "gpx") {
-          trackData = await pgsailClient.exportLogGPX(args.logId as string);
-        } else if (args.format === "geojson") {
-          trackData = await pgsailClient.exportLogGeoJSON(args.logId as string);
-        } else if (args.format === "kml") {
-          trackData = await pgsailClient.exportLogKML(args.logId as string);
+        let logsData;
+        if (args?.format === "gpx") {
+          logsData = await pgsailClient.exportLogGPX(args.id as string);
+        } else if (args?.format === "kml") {
+          logsData = await pgsailClient.exportLogKML(args.id as string);
         } else {
-          throw new Error("Invalid format. Use 'gpx' or 'geojson' or 'kml'.");
+          logsData = await pgsailClient.exportLogGeoJSON(args?.id as string);
         }
         return {
           content: [
             {
               type: "text",
-              text:
-                typeof trackData === "string"
-                  ? trackData
-                  : JSON.stringify(trackData, null, 2),
+              text: JSON.stringify(logsData, null, 2),
             },
           ],
         };
-*/
+
       case "get_moorages":
-        const moorages = await pgsailClient.getMoorages();
+        const moorages = await pgsailClient.getMoorages({
+          default_stay_type: (args?.default_stay_type as string) || "All",
+        });
         if (!Array.isArray(moorages)) {
           throw new Error("Invalid live monitoring data");
         }
@@ -978,7 +997,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
 
       case "get_stays":
-        const stays = await pgsailClient.getStays();
+        const stays = await pgsailClient.getStays({
+          start_date: (args?.start_date as string) || undefined,
+          end_date: (args?.end_date as string) || undefined,
+          stay_type: (args?.stay_type as string) || "All",
+        });
         if (!Array.isArray(stays)) {
           throw new Error("Invalid stays data");
         }
@@ -1021,39 +1044,46 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
-      /*
+
       case "get_monitoring_history":
-        if (!args.startDate || !args.endDate) {
-          throw new Error("Start date and end date are required");
+        let monitoringData;
+        switch (args?.time_interval) {
+          case "24 hours":
+            monitoringData = await pgsailClient.getMonitoringHistory({
+              time_interval: 24,
+            });
+            break;
+          case "48 hours":
+            monitoringData = await pgsailClient.getMonitoringHistory({
+              time_interval: 48,
+            });
+            break;
+          case "72 hours":
+            monitoringData = await pgsailClient.getMonitoringHistory({
+              time_interval: 72,
+            });
+            break;
+          case "7 days":
+            monitoringData = await pgsailClient.getMonitoringHistory({
+              time_interval: 168,
+            });
+            break;
         }
-        const historyPayload = {
-          start_date: args.startDate,
-          end_date: args.endDate,
-          sensors: args.sensors || [],
-        };
-        const historyData = await pgsailClient.getMonitoringHistory(
-          historyPayload
-        );
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(historyData, null, 2),
+              text: JSON.stringify(monitoringData, null, 2),
             },
           ],
         };
-      */
-      case "get_vessel_stats":
+
+      case "get_stats":
         let statsData;
-        if (args?.type === "logs") {
-          statsData = await pgsailClient.getStatsLogs();
-        } else if (args?.type === "moorages") {
-          statsData = await pgsailClient.getStatsMoorages();
-        } else {
-          statsData = await pgsailClient.getStats({
-            timeframe: args?.timeframe || "all",
-          });
-        }
+        statsData = await pgsailClient.getStats({
+          start_date: args?.start_date || null,
+          end_date: args?.end_date || null,
+        });
         return {
           content: [
             {
@@ -1062,6 +1092,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             },
           ],
         };
+
       /*
       case "get_timelapse_data":
         if (!args.startDate || !args.endDate) {
@@ -1334,7 +1365,7 @@ const loadResources_web = async (): Promise<void> => {
     for (const file of resourceFiles) {
       try {
         const resourceName = file.replace(/_/g, "-");
-        const url = `https://openplotter.cloud/resources/${resourceName}.toon`;
+        const url = `https://openplotter.cloud/resources/${resourceName}.json`;
         console.error("loadResources_web file:", url);
         const fetchResult = await fetch(url);
 
