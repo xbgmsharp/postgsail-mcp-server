@@ -18,7 +18,6 @@
   </p>
 </p>
 
-
 [![Github-sponsors](https://img.shields.io/badge/sponsor-30363D?logo=GitHub-Sponsors&logoColor=#EA4AAA)](https://github.com/sponsors/xbgmsharp)
 [![License](https://img.shields.io/github/license/xbgmsharp/postgsail)](#license)
 [![](https://github.com/xbgmsharp/signalk-postgsail/workflows/Publish%20Node.js%20Package/badge.svg)](https://github.com/xbgmsharp/signalk-postgsail/actions)
@@ -29,9 +28,19 @@
 
 # postgsail-mcp-server
 
-Model Context Protocol (MCP) server tailored for PostgSail. that provides AI agents with read-only access to PostgSail marine data systems. This server enables Claude and other AI assistants to search and navigate logs, moorages, and stays, monitor and analyze your boat all in one place.
+Model Context Protocol (MCP) server tailored for PostgSail. that provides AI agents with read-only access to PostgSail marine data systems. This server enables LeChat, Claude and other AI assistants to search and navigate logs, moorages, and stays, monitor and analyze your boat all in one place.
 
 https://github.com/user-attachments/assets/162dac63-8f80-4e46-9357-1033b6b6c78b
+
+## Remote MCP Server
+
+Accessible at https://mcp.openplotter.cloud/
+
+[LeChat](https://chat.mistral.ai/) allow remote [connectors](https://chat.mistral.ai/connections) even with a free account.
+
+Others AI [ClaudeAI](https://claude.ai) and [OpenAI](https://chatgpt.com/) requires an upgrade plan to use remote connectors.
+
+However you can use the MCP locally with Claude Desktop app.
 
 ## Installation
 
