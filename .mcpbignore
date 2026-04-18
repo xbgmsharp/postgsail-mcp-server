@@ -1,6 +1,14 @@
 src/
-Dockerfile
+Dockerfile*
 .dockerignore
 .npmignore
 .git*
-node_modules/@anthropic-ai/mcpb
+tests/
+node_modules/@anthropic-ai/
+node_modules/@modelcontextprotocol/inspector
+node_modules/@types/
+node_modules/tsx/
+node_modules/typescript/
+node_modules/typescript-eslint/
+*mcpb
+CLAUDE.md
