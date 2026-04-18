@@ -27,7 +27,7 @@ export async function startStdioServer() {
   const server = new Server(
     {
       name: "postgsail-server",
-      version: "0.0.6",
+      version: "0.0.7",
     },
     {
       capabilities: {

@@ -151,7 +151,7 @@ export async function startHttpServer() {
     <strong>🚀 Server Info</strong>
     <ul>
       <li><strong>Name:</strong> postgsail-server</li>
-      <li><strong>Version:</strong> 0.0.6</li>
+      <li><strong>Version:</strong> 0.0.7</li>
       <li><strong>Protocol:</strong> MCP (Model Context Protocol)</li>
       <li><strong>Transport:</strong> HTTP with JSON-RPC 2.0</li>
     </ul>
@@ -214,7 +214,7 @@ export async function startHttpServer() {
         JSON.stringify({
           status: "ok",
           name: "postgsail-server",
-          version: "0.0.6",
+          version: "0.0.7",
           transport: "http-streamable",
         })
       );
@@ -295,7 +295,7 @@ export async function startHttpServer() {
                   resources: { subscribe: false, listChanged: false },
                   tools: { listChanged: false },
                 },
-                serverInfo: { name: "postgsail-server", version: "0.0.6" },
+                serverInfo: { name: "postgsail-server", version: "0.0.7" },
               };
               const timestamp = new Date().getTime();
               res.setHeader("mcp-session-id", `postgsail-session-${timestamp}`);

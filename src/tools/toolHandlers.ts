@@ -336,7 +336,7 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
         const contextData: Record<string, any> = {
           server_info: {
             name: "postgsail-server",
-            version: "0.0.6",
+            version: "0.0.7",
             loaded_at: new Date().toISOString(),
             description:
               "PostgSail MCP Server - Provides AI agents with read only access to marine vessel data",
