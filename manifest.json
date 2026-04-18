@@ -2,7 +2,7 @@
     "dxt_version": "0.1",
     "name": "@xbgmsharp/postgsail-mcp-server",
     "display_name": "PostgSail MCP Extension",
-    "version": "0.0.5",
+    "version": "0.0.7",
     "description": "Provides access to PostgSail APIs",
     "long_description": "A Model Context Protocol (MCP) server that provides AI agents with read-only access to PostgSail marine data systems. This server enables Claude and other AI assistants to search and navigate logs, moorages, and stays, monitor and analyze your boat all in one place.",
     "author": {
@@ -26,10 +26,11 @@
                 "${__dirname}/dist/index.js"
             ],
             "env": {
-                "POSTGSAIL_URL": "https://api.openplotter.cloud/",
+                "POSTGSAIL_API_URL": "https://api.openplotter.cloud/",
                 "POSTGSAIL_TOKEN": "${user_config.token}",
                 "POSTGSAIL_VERBOSE": "${user_config.verbose_logging}",
-                "POSTGSAIL_DEBUG": "${user_config.debug_mode}"
+                "POSTGSAIL_DEBUG": "${user_config.debug_mode}",
+                "MCP_TRANSPORT": "stdio"
             }
         }
     },
