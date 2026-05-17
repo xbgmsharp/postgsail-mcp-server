@@ -317,10 +317,9 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
         }
         let timelapse;
         if (args?.format === "linestring") {
-          timelapse = await client.getTimelapse({
-            start_date: args.startDate,
-            end_date: args.endDate,
-          });
+          timelapse = await client.getTimelapse(
+            `start_date=${args.startDate}&end_date=${args.endDate}`
+          );
         } else {
           timelapse = await client.getTimelapseTrips(
             `start_date=${args.startDate}&end_date=${args.endDate}`
