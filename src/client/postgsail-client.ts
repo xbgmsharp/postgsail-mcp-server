@@ -175,8 +175,12 @@ class PostgSailClient {
     return this.requestRPC("rpc/vessel_fn");
   }
 
+  async getVesselActivity() {
+    return this.requestRPC("rpc/vessel_activity_fn");
+  }
+
   async getVesselPolar() {
-    return this.request("metadata_ext?select=polar,polar_updated_at");
+    return this.request("metadata?select=polar,polar_updated_at");
   }
 
   // Logs methods
@@ -375,14 +379,6 @@ class PostgSailClient {
   }
 
   // Stats methods
-  async getStatsLogs() {
-    return this.request("stats_logs_view");
-  }
-
-  async getStatsMoorages() {
-    return this.request("stats_moorages_view");
-  }
-
   async getStats(payload: any) {
     return this.request("rpc/stats_fn", {
       method: "POST",
@@ -391,15 +387,15 @@ class PostgSailClient {
   }
 
   async getLogsByMonth() {
-    return this.request("rpc/logs_by_month_fn");
+    return this.request("rpc/graph_logs_by_month_fn");
   }
 
   async getLogsByWeek() {
-    return this.request("rpc/logs_by_week_fn");
+    return this.request("rpc/graph_logs_by_week_fn");
   }
 
   async getLogsByDay() {
-    return this.request("rpc/logs_by_day_fn");
+    return this.request("rpc/graph_logs_by_day_fn");
   }
 
   // Event logs
@@ -424,7 +420,7 @@ class PostgSailClient {
 
   // Timelapse
   async getTimelapse(payload: any) {
-    return this.request("rpc/timelapse_fn", {
+    return this.request(`rpc/export_logbooks_geojson_linestring_trips_fn?${payload}`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
