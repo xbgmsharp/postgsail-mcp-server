@@ -80,6 +80,16 @@ const toolDefinitions: Tool[] = [
     },
   },
   {
+    name: "get_vessel_activity",
+    title: "Get vessel activity summary",
+    description:
+      "Returns a summary of the vessel's activity. Total count of logs, moorages, stays, and the percentage of activity from the last 30days.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
     name: "get_logs",
     title: "Get logs",
     description:

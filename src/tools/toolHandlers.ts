@@ -45,6 +45,14 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
         };
       }
 
+      case "get_vessel_activity": {
+        const vesselActivity = await client.getVesselActivity();
+        if (!vesselActivity) throw new Error("No vessel activity data found");
+        return {
+          content: [{ type: "text", text: JSON.stringify(vesselActivity, null, 2) }],
+        };
+      }
+
       case "get_logs": {
         const result = await client.getLogs({
           start_date: (args?.start_date as string) || undefined,
