@@ -179,8 +179,13 @@ class PostgSailClient {
     return this.requestRPC("rpc/vessel_activity_fn");
   }
 
+  // Vessel Mapping SignalK
+  async getVesselMapping() {
+    return this.request("metadata?select=configuration,available_keys");
+  }
+
   async getVesselPolar() {
-    return this.request("metadata?select=polar,polar_updated_at");
+    return this.request("metadata?select=polar:user_data->>polar,polar_updated_at:user_data->>polar_updated_at");
   }
 
   // Logs methods
@@ -411,11 +416,6 @@ class PostgSailClient {
   // User profile
   async getProfile() {
     return this.requestRPC("rpc/profile_fn");
-  }
-
-  // Vessel Mapping SignalK
-  async getVesselMapping() {
-    return this.request("metadata?select=configuration,available_keys");
   }
 
   // Timelapse
