@@ -3,20 +3,23 @@ import { Resource } from "@modelcontextprotocol/sdk/types.js";
 export const RESOURCES: Resource[] = [
   {
     uri: "postgsail://postgsail_overview",
-    name: "PostgSail Overview",
-    description: "Core concepts and data model structure of PostgSail",
+    name: "Sailing Logbook Data Guide",
+    description:
+      "Explains what sailing data is tracked (trips, stays, moorages, sensors) and what it means for the sailor. Includes units, terminology, and data freshness notes.",
     mimeType: "application/json",
   },
   {
     uri: "postgsail://path-categories-guide",
-    name: "SignalK Path Categories Guide",
-    description: "Comprehensive reference of SignalK paths and their meanings",
+    name: "Vessel Sensors Guide",
+    description:
+      "Reference of vessel sensor categories and SignalK paths: navigation, electrical, environment, tanks, propulsion. Useful for interpreting monitoring data.",
     mimeType: "application/json",
   },
   {
     uri: "postgsail://mcp-tool-reference",
-    name: "MCP Tool Reference",
-    description: "Guide to understanding and using MCP tools",
+    name: "Sailing Assistant Tool Guide",
+    description:
+      "Maps common sailor questions to the right MCP tools. Includes tool chaining patterns and session-start rules for the AI assistant.",
     mimeType: "application/json",
   },
 ];
