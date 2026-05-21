@@ -1,319 +1,183 @@
 {
-  "description": "PostgSail REST API endpoints and RPC functions reference",
-  "base_url": "https://api.openplotter.cloud/",
-  "endpoints": {
-    "vessel_management": {
-      "get_vessels": {
-        "endpoint": "/vessels_view",
-        "method": "GET",
-        "purpose": "Get vessel fleet status with online/offline indicators",
-        "response_format": "Array of vessel objects with status",
-        "use_when": "Dashboard overview, fleet monitoring"
-      },
-      "get_vessel_details": {
-        "endpoint": "/rpc/vessel_fn",
-        "method": "GET",
-        "purpose": "Get comprehensive vessel information including current position",
-        "response_format": "Single vessel object with metadata and location",
-        "use_when": "Detailed vessel information, current status"
-      },
-      "get_vessel_polar": {
-        "endpoint": "/metadata_ext?select=polar,polar_updated_at",
-        "method": "GET",
-        "purpose": "Get vessel polar performance data",
-        "response_format": "Polar data in CSV format",
-        "use_when": "Performance analysis, routing optimization"
-      },
-      "get_vessel_mapping": {
-        "endpoint": "/metadata?select=configuration,available_keys",
-        "method": "GET",
-        "purpose": "Get SignalK path mapping configuration",
-        "response_format": "Configuration object with path mappings",
-        "use_when": "System configuration, sensor setup"
-      }
+  "title": "Sailing Assistant — Tool Selection Guide",
+  "description": "Maps common sailor questions to the right MCP tools so you can answer quickly and accurately",
+  "session_start": {
+    "rule": "Always call get_initial_context at the start of every session",
+    "reason": "Loads the sailor's name, vessel details, lifetime stats, 3 most recent trips, favourite moorages, and alert preferences so every response can be personalised",
+    "never_call_inside_loop": true
+  },
+  "question_to_tool_mapping": {
+    "vessel_questions": {
+      "examples": [
+        "what boat do I have?",
+        "how long is my vessel?",
+        "what type of boat is it?",
+        "is my boat online?",
+        "tell me about my vessel"
+      ],
+      "tools": [
+        "get_vessels — fleet list with online/offline status",
+        "get_vessel — dimensions (length/beam/height), ship type, country, make/model, polar data"
+      ]
     },
-    "logbook_management": {
-      "get_logs": {
-        "endpoint": "/logs_view?limit=5",
-        "method": "GET",
-        "purpose": "Get formatted trip listings with moorage names",
-        "response_format": "Array of log entries with formatted data",
-        "use_when": "Trip history, logbook overview",
-        "pagination": "Use limit and offset parameters"
-      },
-      "get_log": {
-        "endpoint": "/log_view?id=eq.{id}",
-        "method": "GET",
-        "purpose": "Get individual trip details",
-        "response_format": "Single log entry with full details",
-        "use_when": "Trip details, specific log analysis"
-      },
-      "get_logs_geojson": {
-        "endpoint": "/logs_geojson_view?select=geojson&geojson=not.is.null&order=starttimestamp.desc&limit={limit}&offset={offset}",
-        "method": "GET",
-        "purpose": "Get trip tracks as GeoJSON for mapping",
-        "response_format": "GeoJSON LineString features",
-        "use_when": "Map visualization, track display",
-        "headers": {
-          "Prefer": "count=exact"
-        }
-      },
-      "export_log_gpx": {
-        "endpoint": "/rpc/export_logbook_gpx_trip_fn",
-        "method": "POST",
-        "purpose": "Export trip as GPX track",
-        "payload": {
-          "_id": "log_id"
-        },
-        "response_format": "GPX XML data",
-        "headers": {
-          "Accept": "text/xml"
-        },
-        "use_when": "GPS device import, navigation software"
-      },
-      "export_log_geojson": {
-        "endpoint": "/rpc/export_logbook_geojson_trip_fn",
-        "method": "POST",
-        "purpose": "Export trip as GeoJSON track",
-        "payload": {
-          "_id": "log_id"
-        },
-        "response_format": "GeoJSON LineString",
-        "use_when": "Web mapping, GIS analysis"
-      },
-      "export_log_kml": {
-        "endpoint": "/rpc/export_logbook_kml_trip_fn",
-        "method": "POST",
-        "purpose": "Export trip as KML for Google Earth",
-        "payload": {
-          "_id": "log_id"
-        },
-        "response_format": "KML XML data",
-        "use_when": "Google Earth visualization"
-      }
+    "recent_trip_questions": {
+      "examples": [
+        "where did I sail last?",
+        "what was my last trip?",
+        "where did I come from?",
+        "last voyage details"
+      ],
+      "tools": ["get_last_log"]
     },
-    "moorage_management": {
-      "get_moorages": {
-        "endpoint": "/moorages_view?limit=5",
-        "method": "GET",
-        "purpose": "Get moorage summary with stay statistics",
-        "response_format": "Array of moorages with arrival/departure counts",
-        "use_when": "Harbor overview, location management"
-      },
-      "get_moorage": {
-        "endpoint": "/moorage_view?id=eq.{id}",
-        "method": "GET",
-        "purpose": "Get individual moorage details",
-        "response_format": "Single moorage with full details",
-        "use_when": "Location details, moorage information"
-      },
-      "get_moorages_geojson": {
-        "endpoint": "/rpc/export_moorages_geojson_fn",
-        "method": "POST",
-        "purpose": "Export all moorages as GeoJSON points",
-        "response_format": "GeoJSON Point features",
-        "use_when": "Map visualization, location overview"
-      },
-      "get_moorage_stays": {
-        "endpoint": "/moorages_stays_view?id=eq.{id}",
-        "method": "GET",
-        "purpose": "Get stay history for specific moorage",
-        "response_format": "Array of stays at moorage",
-        "use_when": "Location history, stay analysis"
-      },
-      "get_moorage_arrivals_departures": {
-        "endpoint": "/logs_view?or=(_from_moorage_id.eq.{id},_to_moorage_id.eq.{id})",
-        "method": "GET",
-        "purpose": "Get trips to/from specific moorage",
-        "response_format": "Array of related log entries",
-        "use_when": "Moorage traffic analysis"
-      }
+    "trip_history_questions": {
+      "examples": [
+        "show me my trips",
+        "what voyages have I done?",
+        "find trips over 50 NM",
+        "trips in June",
+        "passages longer than 8 hours",
+        "logs tagged as offshore"
+      ],
+      "tools": [
+        "get_logs — list with optional filters: start_date, end_date, distance (NM), duration (hours), tags",
+        "get_log — full details of one trip by ID (track, sensor data, moorage info)"
+      ]
     },
-    "stay_management": {
-      "get_stays": {
-        "endpoint": "/stays_view?limit=5",
-        "method": "GET",
-        "purpose": "Get stay history with moorage links",
-        "response_format": "Array of stays with duration and location",
-        "use_when": "Time analysis, location patterns"
-      },
-      "get_stay": {
-        "endpoint": "/stay_view?id=eq.{id}",
-        "method": "GET",
-        "purpose": "Get individual stay details",
-        "response_format": "Single stay with full details",
-        "use_when": "Stay analysis, time tracking"
-      },
-      "get_stays_map": {
-        "endpoint": "/stays_geojson_view?select=geojson&geojson=not.is.null&limit={limit}&offset={offset}",
-        "method": "GET",
-        "purpose": "Get stays as GeoJSON for mapping",
-        "response_format": "GeoJSON Point features",
-        "headers": {
-          "Prefer": "count=exact"
-        },
-        "use_when": "Map visualization, stay locations"
-      }
+    "statistics_questions": {
+      "examples": [
+        "how far have I sailed?",
+        "sailing summary this year",
+        "how many trips did I do?",
+        "what is my top speed?",
+        "best 24h run?",
+        "which countries have I visited?",
+        "total hours underway"
+      ],
+      "tools": [
+        "get_stats — aggregated totals (trips, distance, time), personal records, best 24h run, top moorages; supports optional date range"
+      ]
     },
-    "monitoring": {
-      "get_monitoring": {
-        "endpoint": "/monitoring_view",
-        "method": "GET",
-        "purpose": "Get current vessel status and sensor readings",
-        "response_format": "Current metrics with offline status",
-        "use_when": "Real-time monitoring, system status"
-      },
-      "get_monitoring_live": {
-        "endpoint": "/monitoring_live",
-        "method": "GET",
-        "purpose": "Get live monitoring with active track/stay data",
-        "response_format": "Enhanced monitoring with GeoJSON tracks",
-        "use_when": "Live tracking, current activity"
-      },
-      "get_monitoring_history": {
-        "endpoint": "/rpc/monitoring_history_fn",
-        "method": "POST",
-        "purpose": "Get historical sensor data",
-        "payload": "Date range and sensor parameters",
-        "response_format": "Time series data",
-        "use_when": "Historical analysis, trend monitoring"
-      }
+    "moorage_questions": {
+      "examples": [
+        "where have I anchored?",
+        "list my marinas",
+        "most visited anchorages",
+        "where was I in August?",
+        "details about a specific moorage",
+        "how many times have I been to this port?"
+      ],
+      "tools": [
+        "get_moorages — list all moorages, filterable by type (Anchor/Dock/Mooring Buoy)",
+        "get_moorage — full details of one moorage by ID",
+        "get_moorage_stays — all stays at a specific moorage",
+        "get_moorage_arrivals_departures — all trips that departed from or arrived at a moorage"
+      ]
     },
-    "statistics": {
-      "get_stats_logs": {
-        "endpoint": "/stats_logs_view",
-        "method": "GET",
-        "purpose": "Get trip statistics summary",
-        "auth_required": "user_role",
-        "response_format": "Aggregated trip statistics",
-        "use_when": "Performance overview, trip analysis"
-      },
-      "get_stats_moorages": {
-        "endpoint": "/stats_moorages_view",
-        "method": "GET",
-        "purpose": "Get moorage usage statistics",
-        "auth_required": "user_role",
-        "response_format": "Moorage visit statistics",
-        "use_when": "Location analysis, usage patterns"
-      },
-      "get_stats": {
-        "endpoint": "/rpc/stats_fn",
-        "method": "POST",
-        "purpose": "Get custom statistics with date range",
-        "auth_required": "user_role",
-        "payload": "Date range parameters",
-        "response_format": "Custom aggregated statistics",
-        "use_when": "Custom analysis, reporting"
-      }
+    "stay_questions": {
+      "examples": [
+        "how long did I anchor?",
+        "list my recent stays",
+        "nights at anchor last month",
+        "time spent docked vs anchored",
+        "longest anchor stay"
+      ],
+      "tools": [
+        "get_stays — list with optional filters: arrived, departed, stay_type, duration (hours)",
+        "get_stay — full details of one stay by ID"
+      ]
     },
-    "system": {
-      "get_settings": {
-        "endpoint": "/rpc/settings_fn",
-        "method": "GET",
-        "purpose": "Get user profile and preferences",
-        "auth_required": "user_role",
-        "response_format": "User settings object",
-        "use_when": "Profile management, configuration"
-      },
-      "get_badges": {
-        "endpoint": "/badges_view",
-        "method": "GET",
-        "purpose": "Get user achievements and badges",
-        "auth_required": "user_role",
-        "response_format": "Array of earned badges",
-        "use_when": "Gamification, achievements"
-      },
-      "get_event_logs": {
-        "endpoint": "/eventlogs_view",
-        "method": "GET",
-        "purpose": "Get system event log entries",
-        "auth_required": "user_role",
-        "response_format": "Array of system events",
-        "use_when": "System monitoring, troubleshooting"
-      },
-      "get_total_info": {
-        "endpoint": "/total_info_view",
-        "method": "GET",
-        "purpose": "Get overall system totals",
-        "auth_required": "user_role",
-        "response_format": "Summary statistics object",
-        "use_when": "Dashboard overview, system summary"
-      },
-      "get_logs_by_month": {
-        "endpoint": "/rpc/logs_by_month_fn",
-        "method": "GET",
-        "purpose": "Get trip activity by month",
-        "auth_required": "user_role",
-        "response_format": "Monthly activity data",
-        "use_when": "Activity charts, seasonal analysis"
-      }
+    "live_monitoring_questions": {
+      "examples": [
+        "where is my boat now?",
+        "current battery level",
+        "what is the wind doing?",
+        "how deep is the water?",
+        "is the boat online?",
+        "current vessel status"
+      ],
+      "tools": ["get_monitoring_live"]
     },
-    "timelapse": {
-      "get_timelapse": {
-        "endpoint": "/rpc/timelapse_fn",
-        "method": "POST",
-        "purpose": "Generate timelapse visualization data",
-        "auth_required": "user_role",
-        "payload": "Vessel and time parameters",
-        "response_format": "Timelapse track data",
-        "use_when": "Animation, track replay"
-      },
-      "get_timelapse_trips": {
-        "endpoint": "/rpc/export_logbooks_geojson_point_trips_fn",
-        "method": "GET",
-        "purpose": "Get trip points for timelapse animation",
-        "auth_required": "user_role",
-        "response_format": "GeoJSON Point sequence",
-        "use_when": "Trip animation, replay visualization"
-      }
+    "historical_sensor_questions": {
+      "examples": [
+        "how was my battery yesterday?",
+        "wind trend over the last 3 days",
+        "pressure history",
+        "water temperature this week",
+        "solar power yesterday"
+      ],
+      "tools": [
+        "get_monitoring_history — choose interval: '24 hours', '48 hours', '72 hours', or '7 days'"
+      ]
+    },
+    "nearby_anchorage_questions": {
+      "examples": [
+        "find an anchorage near X",
+        "where can I anchor near Y?",
+        "anchorages I have not visited yet near here",
+        "good shelter near [place]",
+        "marinas within 20 miles"
+      ],
+      "tools": [
+        "find_anchorages_near — requires latitude and longitude (resolve place name from general knowledge first); supports radius_nm, stay_type, unvisited_only filters"
+      ]
+    },
+    "export_questions": {
+      "examples": [
+        "export my trip as GPX",
+        "give me the KML for that voyage",
+        "download track as GeoJSON",
+        "I want to open this trip in Google Earth"
+      ],
+      "tools": [
+        "export_log_track — specify logId and format (gpx / geojson / kml)"
+      ]
+    },
+    "map_visualisation_questions": {
+      "examples": [
+        "show my trips on a map",
+        "plot my recent voyages",
+        "map of my tracks"
+      ],
+      "tools": [
+        "get_logs_geojson — returns GeoJSON line features for recent tracks"
+      ]
+    },
+    "achievement_questions": {
+      "examples": [
+        "what badges have I earned?",
+        "sailing achievements",
+        "milestones reached"
+      ],
+      "tools": ["get_badges"]
+    },
+    "profile_questions": {
+      "examples": [
+        "my alert settings",
+        "what unit system am I using?",
+        "my monitoring thresholds",
+        "low battery alert level"
+      ],
+      "tools": ["get_profile"]
     }
   },
-  "log_image_exports": {
-    "export_log_png": {
-      "endpoint": "https://gis.openplotter.cloud/log_{vessel_id}_{log_id}.png",
-      "method": "GET",
-      "purpose": "Export trip as PNG for visualization",
-      "request-uri-regexp": "^/log_(\\w+)_(\\d+).png$",
-      "response_format": "PNG image data",
-      "use_when": "image visualization"
-    },
-    "export_logs_png": {
-      "endpoint": "https://gis.openplotter.cloud/logs_{vessel_id}_{log_id}.png",
-      "method": "GET",
-      "purpose": "Export all logs as PNG for visualization",
-      "request-uri-regexp": "^/logs_(\\w+)_(\\d+).png$",
-      "response_format": "PNG image data",
-      "use_when": "image visualization"
-    },
-    "export_trip_png": {
-      "endpoint": "https://gis.openplotter.cloud/trip_{vessel_id}_{log_id}_{log_id}.png",
-      "method": "GET",
-      "purpose": "Export trip as PNG for visualization",
-      "request-uri-regexp": "^/trip_((\\w+)_(\\d+)_(\\d+)).png$",
-      "response_format": "PNG image data",
-      "use_when": "image visualization"
-    },
-    "export_trip_sat_png": {
-      "endpoint": "https://gis.openplotter.cloud/trip_{vessel_id}_{log_id}_{log_id}_sat.png",
-      "method": "GET",
-      "purpose": "Export trip as PNG for satellite visualization",
-      "request-uri-regexp": "^/trip_((\\w+)_(\\d+)_(\\d+))_sat.png$",
-      "response_format": "PNG image data",
-      "use_when": "image satellite visualization"
-    }
-  },
-  "efficiency_guidelines": {
-    "pagination": "Use limit/offset for large datasets",
-    "caching": "Cache view results - they update less frequently than raw tables",
-    "filtering": "Use PostgREST query parameters for filtering",
-    "geojson": "GeoJSON endpoints are optimized for mapping applications",
-    "rpc_functions": "RPC functions handle complex operations efficiently"
-  },
-  "response_formats": {
-    "json": "application/json - Default format",
-    "geojson": "application/geo+json - Spatial data",
-    "csv": "text/csv - Bulk data export",
-    "xml": "text/xml - GPX/KML exports",
-    "png": "image/png - Trip(s) images"
+  "tool_chaining_patterns": {
+    "explore_a_specific_trip": [
+      "1. get_logs → browse list and find the trip ID",
+      "2. get_log(id) → full trip details, GPS track, and sensor data"
+    ],
+    "explore_a_specific_moorage": [
+      "1. get_moorages → browse list and find the moorage ID",
+      "2. get_moorage(id) → location details and visit statistics",
+      "3. get_moorage_stays(id) → all individual stays at this location",
+      "4. get_moorage_arrivals_departures(id) → all trips that started or ended here"
+    ],
+    "answer_date_range_questions": [
+      "Use get_stats for high-level totals and records over a period",
+      "Use get_logs with start_date/end_date for individual trip listings",
+      "Use get_stays with arrived/departed for time-at-anchor analysis"
+    ],
+    "answer_where_am_i_now": [
+      "get_monitoring_live — gives current GPS position, speed, heading, and sensor readings"
+    ]
   }
 }
