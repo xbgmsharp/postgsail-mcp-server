@@ -80,16 +80,6 @@ const toolDefinitions: Tool[] = [
     },
   },
   {
-    name: "get_vessel_activity",
-    title: "Get vessel activity summary",
-    description:
-      "Returns a summary of the vessel's activity. Total count of logs, moorages, stays, and the percentage of activity from the last 30days.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
-  },
-  {
     name: "get_logs",
     title: "Get logs",
     description:
@@ -182,7 +172,11 @@ const toolDefinitions: Tool[] = [
   },
   {
     name: "get_logs_geojson",
-    description: "Get recent voyage logs as GeoJSON for mapping",
+    title: "Get voyage tracks as map data",
+    description:
+      "Retrieve recent voyage tracks as GeoJSON geographic line features for map rendering. " +
+      "Use when the user wants to visualize, plot, or display their trips on a map. " +
+      "Supports pagination to browse older tracks.",
     inputSchema: {
       type: "object",
       properties: {
@@ -196,8 +190,12 @@ const toolDefinitions: Tool[] = [
   },
   {
     name: "export_log_track",
+    title: "Export voyage track file",
     description:
-      "Export specific log track in various formats, gpx, geojson, kml",
+      "Export a specific voyage track as a downloadable file in GPX, GeoJSON, or KML format. " +
+      "GPX works with GPS devices and navigation apps (e.g. Garmin, OpenCPN). " +
+      "KML opens in Google Earth. GeoJSON works with web mapping tools. " +
+      "Use when the user wants to save, share, or re-use a trip track.",
     inputSchema: {
       type: "object",
       properties: {
@@ -215,7 +213,10 @@ const toolDefinitions: Tool[] = [
     name: "get_moorages",
     title: "Get moorages",
     description:
-      "Get a summary of all moorages/marinas/anchorages, including location, type (anchor, dock, mooring buoy), and basic usage statistics. This is useful for identifying frequently used moorages and understanding their characteristics.",
+      "Get a summary of all moorages/marinas/anchorages, including location, " +
+      "type (anchor, dock, mooring buoy), and basic usage statistics. " +
+      "Use to find by stay type, list most visited anchorages, or browse all moorages. " +
+      "Supports filtering by type and pagination.",
     inputSchema: {
       type: "object",
       properties: {
@@ -557,8 +558,13 @@ const toolDefinitions: Tool[] = [
   },
   {
     name: "get_monitoring_history",
+    title: "Get recent sensor history",
     description:
-      "Get historical monitoring data for a predefined period. Provides access to past sensor readings limited in time range (24h,48h,72h,7days), which is useful for analyzing trends and conditions experienced during specific voyages or events.",
+      "Retrieve historical sensor readings for the last 24h, 48h, 72h, or 7 days: " +
+      "battery charge/voltage, solar power, wind speed/direction, water temperature, depth, " +
+      "air temperature, humidity, and barometric pressure trend. " +
+      "Use to answer: 'how was my battery yesterday?', 'what was the wind doing overnight?', " +
+      "'show me the pressure trend over the last 3 days'.",
     inputSchema: {
       type: "object",
       properties: {
@@ -605,67 +611,35 @@ const toolDefinitions: Tool[] = [
     },
   },
   {
-    name: "get_vessel_mapping",
-    description:
-      "Get vessel signalk path mapping configuration and the available keys. This is useful for understanding how the vessel's sensor data is mapped to specific signalk paths, which can help in interpreting the live and historical monitoring data correctly.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
-    outputSchema: {
-      type: "object",
-      properties: {
-        type: {},
-        required: ["configuration"],
-        properties: {
-          configuration: {
-            type: "object",
-            properties: {
-              updated_at: { type: "string", format: "date-time" },
-              depthKey: { type: "string" },
-              voltageKey: { type: "string" },
-              windSpeedKey: { type: "string" },
-              stateOfChargeKey: { type: "string" },
-              windDirectionKey: { type: "string" },
-              insideHumidityKey: { type: "string" },
-              insidePressureKey: { type: "string" },
-              outsideHumidityKey: { type: "string" },
-              outsidePressureKey: { type: "string" },
-              waterTemperatureKey: { type: "string" },
-              insideTemperatureKey: { type: "string" },
-              outsideTemperatureKey: { type: "string" },
-              solarPowerKey: { type: "string" },
-              solarVoltageKey: { type: "string" },
-              tankLevelKey: { type: "string" },
-              additionalProperties: true,
-            },
-            additionalProperties: true,
-          },
-        },
-      },
-    },
-  },
-  {
     name: "get_stats",
+    title: "Get voyage statistics summary",
     description:
-      "Get statistics data for specific timeframe, include aggregate of logs by speed,distance,duration and aggregate moorages by duration and arrival. Useful to analyze trends and performance over time.",
+      "Get aggregated voyage statistics for a time period: total trips, total distance sailed (NM), " +
+      "total time underway, personal records (max speed, max wind, longest passage), best 24h run, " +
+      "and top moorages by arrivals and duration. " +
+      "Use this to answer: 'how far have I sailed?', 'what was my best passage?', " +
+      "'sailing summary for this year/season/month', 'how many trips did I do?', " +
+      "'which countries have I visited?'. Defaults to all-time when no dates given.",
     inputSchema: {
       type: "object",
       properties: {
-        start_date: { type: "string", description: "Start date (ISO format)" },
-        end_date: { type: "string", description: "End date (ISO format)" },
+        start_date: { type: "string", description: "Start of period (ISO 8601). Omit for all-time." },
+        end_date: { type: "string", description: "End of period (ISO 8601). Omit for all-time." },
       },
     },
   },
   {
     name: "get_timelapse_data",
+    title: "Get vessel movement animation data",
     description:
-      "Get timelapse/track data for visualization, including points or linestring formats to represent the vessel's movement over time.",
+      "Retrieve vessel GPS positions for a date range, formatted for timelapse replay or animation. " +
+      "Returns either discrete GPS points or continuous track lines (linestring). " +
+      "Use when the user wants to animate, replay, or visualize their movements over a specific period.",
     inputSchema: {
       type: "object",
       properties: {
-        startDate: { type: "string", description: "Start date (ISO format)" },
-        endDate: { type: "string", description: "End date (ISO format)" },
+        startDate: { type: "string", description: "Start of period (ISO 8601). Omit for all-time." },
+        endDate: { type: "string", description: "End of period (ISO 8601). Omit for all-time." },
         format: {
           type: "string",
           enum: ["points", "linestring"],
@@ -677,50 +651,10 @@ const toolDefinitions: Tool[] = [
     },
   },
   {
-    name: "get_event_logs",
-    title: "Get event logs",
-    description:
-      "Get system event log entries including alerts, notifications, and significant vessel events. Useful for troubleshooting connectivity issues, reviewing alert history, and understanding what triggered notifications.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
-  },
-  {
     name: "get_badges",
     title: "Get vessel badges",
     description:
       "Get vessel achievements and earned badges based on voyage milestones (e.g., distance sailed, number of anchorages, night sailing). Useful for summarizing accomplishments.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
-  },
-  {
-    name: "get_logs_by_day",
-    title: "Get logs by day",
-    description:
-      "Get voyage activity aggregated by calendar day. Shows how many trips were made and total distance per day. Useful for detailed daily analysis and identifying patterns in daily sailing activity.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
-  },
-  {
-    name: "get_logs_by_week",
-    title: "Get logs by week",
-    description:
-      "Get voyage activity aggregated by calendar week. Shows how many trips were made and total distance per week. Useful for weekly analysis, identifying trends, and short-term summaries.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
-  },
-  {
-    name: "get_logs_by_month",
-    title: "Get logs by month",
-    description:
-      "Get voyage activity aggregated by calendar month. Shows how many trips were made and total distance per month. Useful for seasonal analysis, identifying peak sailing months, and yearly summaries.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -740,7 +674,55 @@ const toolDefinitions: Tool[] = [
     },
   },
   {
+    name: "find_anchorages_near",
+    title: "Find anchorages near a location",
+    description:
+      "Find and search for anchorages, marinas, moorings, or docks near a given position. " +
+      "Use when user asks: 'find a quiet anchorage near X', 'where can I anchor near Y', " +
+      "'anchorages I haven't visited nearby', 'good shelter close to [place]', " +
+      "'what moorages are around here'. " +
+      "Requires lat/lon — resolve place names from context or prior knowledge first.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        latitude: { type: "number", description: "Center latitude (WGS84)" },
+        longitude: { type: "number", description: "Center longitude (WGS84)" },
+        radius_nm: { type: "number", description: "Search radius in nautical miles (default 50)", default: 50 },
+        stay_type: {
+          type: "string",
+          enum: ["All", "Anchor", "Dock", "Mooring Buoy"],
+          default: "All",
+        },
+        unvisited_only: {
+          type: "boolean",
+          description: "If true, only return moorages this vessel has never visited",
+          default: false,
+        },
+      },
+      required: ["latitude", "longitude"],
+    },
+  },
+  {
+    name: "get_user_context",
+    title: "Get sailor and vessel context",
+    description:
+      "Returns personalised sailing context: sailor name, vessel details, lifetime stats " +
+      "(total trips, distance, countries), last 3 trips, favourite moorages, 30-day activity " +
+      "metrics, and alert preferences. " +
+      "PostgSail tracks: logbook (trips with GPS track, distance NM, speed knots), " +
+      "stays (anchor/dock/mooring buoy periods), moorages (named places clustered within 300m), " +
+      "and monitoring (live sensors: wind, depth, battery, solar, temperature, pressure, tanks). " +
+      "Use when asked: 'what data do you have?', 'what can you tell me about my sailing?', " +
+      "'overview of my history', or when the query needs broad sailing context to answer well.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+  {
     name: "get_initial_context",
+    title: "Get PostgSail context",
     description:
       "Get comprehensive PostgSail context and documentation to understand available data and usage patterns",
     inputSchema: {

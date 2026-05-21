@@ -1,3 +1,4 @@
+import { profile } from "console";
 import PostgSailClient, { ViewResult } from "../client/postgsail-client.js";
 import { resourcesMap } from "../resources/resourceHandlers.js";
 
@@ -336,6 +337,14 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
         const timelapseData = unwrapData(timelapse, "timelapse");
         return {
           content: [{ type: "text", text: JSON.stringify(timelapseData, null, 2) }],
+        };
+      }
+
+      case "get_user_context": {
+        const contextData = await client.getContext();
+        if (!contextData.context) throw new Error("No sailor data found");
+        return {
+          content: [{ type: "text", text: JSON.stringify(contextData.context, null, 2) }],
         };
       }
 
