@@ -1,7 +1,7 @@
 {
   "name": "@xbgmsharp/postgsail-mcp-server",
   "mcpName": "io.github.xbgmsharp/postgsail",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "type": "module",
   "scripts": {
     "build": "tsc",
