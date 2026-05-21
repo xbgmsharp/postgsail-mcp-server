@@ -166,6 +166,11 @@ class PostgSailClient {
     });
   }
 
+  // Sailor methods
+  async getContext() {
+    return this.requestRPC("rpc/mcp_initial_context_fn");
+  }
+
   // Vessel methods
   async getVessels() {
     return this.request("vessels_view");
