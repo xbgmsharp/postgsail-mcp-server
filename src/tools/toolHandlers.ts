@@ -305,9 +305,9 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
 
       case "get_profile": {
         const profile = await client.getProfile();
-        if (!profile?.settings) throw new Error("No profile data found");
+        if (!profile.profile) throw new Error("No profile data found");
         return {
-          content: [{ type: "text", text: JSON.stringify(profile.settings, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(profile.profile, null, 2) }],
         };
       }
 
@@ -337,6 +337,28 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
         const timelapseData = unwrapData(timelapse, "timelapse");
         return {
           content: [{ type: "text", text: JSON.stringify(timelapseData, null, 2) }],
+        };
+      }
+
+      case "find_anchorages_near": {
+        if (args?.latitude === undefined || args?.longitude === undefined) {
+          throw new Error("latitude and longitude are required");
+        }
+        const result = await client.findAnchoragesNear({
+          latitude: args.latitude as number,
+          longitude: args.longitude as number,
+          radius_nm: (args.radius_nm as number) || 50,
+          stay_type: (args.stay_type as string) || "All",
+          unvisited_only: (args.unvisited_only as boolean) || false,
+        });
+        const anchorages = unwrapData(result, "anchorages near");
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(anchorages, null, 2) + paginationNote(result),
+            },
+          ],
         };
       }
 
