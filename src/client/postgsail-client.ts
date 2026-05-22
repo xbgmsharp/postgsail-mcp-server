@@ -168,7 +168,7 @@ class PostgSailClient {
 
   // Sailor methods
   async getContext() {
-    return this.requestRPC("rpc/mcp_initial_context_fn");
+    return this.requestRPC("rpc/mcp_user_context_fn");
   }
 
   // Vessel methods
@@ -435,6 +435,32 @@ class PostgSailClient {
     return this.request(
       `rpc/export_logbooks_geojson_point_trips_fn?${payload}`
     );
+  }
+
+  async findAnchoragesNear({
+    latitude,
+    longitude,
+    radius_nm = 50,
+    stay_type = "All",
+    unvisited_only = false,
+  }: {
+    latitude: number;
+    longitude: number;
+    radius_nm?: number;
+    stay_type?: string;
+    unvisited_only?: boolean;
+  }) {
+    const stayTypeId = stayTypeToId[stay_type] ?? -1;
+    return this.request("rpc/find_anchorages_near_fn", {
+      method: "POST",
+      body: JSON.stringify({
+        _lat: latitude,
+        _lon: longitude,
+        _radius: radius_nm,
+        _stay_type_id: stayTypeId === -1 ? null : stayTypeId,
+        _unvisited: unvisited_only,
+      }),
+    });
   }
 }
 
