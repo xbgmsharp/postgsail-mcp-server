@@ -24,66 +24,17 @@ const toolDefinitions: Tool[] = [
     name: "get_vessel",
     title: "Get vessel metadata",
     description:
-      "Describes the vessel's dimensions (beam, length, height) and its ship_type (e.g., sailing, motor), country of registration, and user data (photo, make&model, polar), and other static information (platform,plugin version). This is useful for understanding the vessel's characteristics and capabilities.",
+      "Returns the vessel's dimensions (beam, length, height), ship type (sailing, motor, etc.), country of registration, make/model, and platform/plugin version.",
     inputSchema: {
       type: "object",
       properties: {},
     },
-    outputSchema: {
-      type: "object",
-      properties: {
-        type: {},
-        required: [
-          "name",
-          "geojson",
-          "offline",
-          "has_image",
-          "has_polar",
-          "image_url",
-          "vessel_id",
-          "created_at",
-          "last_contact",
-          "configuration",
-          "first_contact",
-          "plugin_version",
-          "signalk_version",
-          "image_updated_at",
-        ],
-        properties: {
-          beam: { type: "number" },
-          mmsi: { type: "string", pattern: "^\\d{9}$" },
-          name: { type: "string" },
-          height: { type: "number" },
-          length: { type: "number" },
-          alpha_2: { type: "string", minLength: 2, maxLength: 2 },
-          country: { type: "string" },
-          offline: { type: "boolean" },
-          platform: { type: "string" },
-          has_images: { type: "boolean" },
-          has_polar: { type: "boolean" },
-          image_url: { type: "string", format: "uri-reference" },
-          ship_type: {
-            type: "string",
-            enum: ["Sailing", "Motor", "Cargo", "Fishing", "Tanker", "Other"],
-          },
-          vessel_id: { type: "string", pattern: "^[a-f0-9]{16,}$" },
-          created_at: { type: "string", format: "date-time" },
-          make_model: { type: "string" },
-          last_contact: { type: "string", format: "date-time" },
-          configuration: { type: "boolean" },
-          first_contact: { type: "string", format: "date-time" },
-          plugin_version: { type: "string", pattern: "^\\d+\\.\\d+\\.\\d+$" },
-          image_updated_at: { type: "string", format: "date-time" },
-          additionalProperties: true,
-        },
-      },
-    },
   },
   {
     name: "get_logs",
-    title: "Get logs",
+    title: "List voyage logs",
     description:
-      "Get a summary of all voyage logs (trips) with basic details like start/end times, distance, duration, and tags. This is useful for quickly browsing through past voyages and identifying ones of interest for deeper exploration.",
+      "List voyage logs (trips) with start/end times, distance, duration, and tags. Supports filtering by date range, minimum distance, minimum duration, and tags. Use to browse past voyages or narrow down to specific trips.",
     inputSchema: {
       type: "object",
       properties: {
@@ -92,12 +43,10 @@ const toolDefinitions: Tool[] = [
         distance: {
           type: "number",
           description: "Filter logs by minimum distance (in nautical miles)",
-          required: false,
         },
         duration: {
           type: "number",
           description: "Filter logs by minimum duration (in hours)",
-          required: false,
         },
         tags: {
           type: "array",
@@ -105,7 +54,6 @@ const toolDefinitions: Tool[] = [
             type: "string",
           },
           description: "Filter logs by tags (e.g., ['maintenance', 'voyage'])",
-          required: false,
         },
         limit: {
           type: "number",
@@ -119,39 +67,16 @@ const toolDefinitions: Tool[] = [
         },
       },
     },
-    /*
-    outputSchema: {
-      type: "object", // Type '"array"' is not assignable to type '"object"'.ts(2322) (property) type: "array"
-      items: {
-        type: "object",
-        properties: {
-          id: { type: "integer", minimum: 1 },
-          name: { type: "string" },
-          from: { type: "string" },
-          started: { type: "string", format: "date-time" },
-          to: { type: "string" },
-          ended: { type: "string", format: "date-time" },
-          distance: { type: "number", minimum: 0 },
-          duration: {
-            type: "string",
-            pattern: "^PT(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?$",
-          },
-          _from_moorage_id: { type: "integer", minimum: 1 },
-          _to_moorage_id: { type: "integer", minimum: 1 },
-          tags: {
-            type: ["array", "null"],
-            items: { type: "string" },
-          },
-        },
-      },
-    },
-    */
   },
   {
     name: "get_last_log",
     title: "Get last log details",
     description:
-      "Get all details for the most recent voyage log, including the full track, sensor data, and moorage information. This is useful for quickly accessing the latest voyage information.",
+      "Get full details for the vessel's most recent voyage log: GPS track (GeoJSON), distance (NM), " +
+      "duration, average and max speed (knots), max wind speed (TWS knots), departure and " +
+      "arrival moorage names and IDs, and per-point sensor time-series (COG, SOG, depth, " +
+      "wind speed/direction, water temperature, battery, solar, pressure, heading, tank level). " +
+      "Use to answer questions about a specific trip or to obtain moorage IDs for follow-up calls.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -161,7 +86,11 @@ const toolDefinitions: Tool[] = [
     name: "get_log",
     title: "Get log details",
     description:
-      "Get all details for specific voyage log by ID, including the full track, sensor data, and moorage information. This is useful for deep-diving into a particular voyage to analyze the route taken, conditions experienced, and moorings used.",
+      "Get full details for a specific voyage log by ID: GPS track (GeoJSON), distance (NM), " +
+      "duration, average and max speed (knots), max wind speed (TWS knots), departure and " +
+      "arrival moorage names and IDs, and per-point sensor time-series (COG, SOG, depth, " +
+      "wind speed/direction, water temperature, battery, solar, pressure, heading, tank level). " +
+      "Use to answer questions about a specific trip or to obtain moorage IDs for follow-up calls.",
     inputSchema: {
       type: "object",
       properties: {
@@ -211,12 +140,11 @@ const toolDefinitions: Tool[] = [
   },
   {
     name: "get_moorages",
-    title: "Get moorages",
+    title: "List visited moorages",
     description:
-      "Get a summary of all moorages/marinas/anchorages, including location, " +
-      "type (anchor, dock, mooring buoy), and basic usage statistics. " +
-      "Use to find by stay type, list most visited anchorages, or browse all moorages. " +
-      "Supports filtering by type and pagination.",
+      "List all moorages (anchorages, marinas, mooring buoys) the vessel has visited, " +
+      "with location, stay type, and usage statistics. " +
+      "Supports filtering by type (anchor, dock, mooring buoy) and pagination.",
     inputSchema: {
       type: "object",
       properties: {
@@ -243,7 +171,7 @@ const toolDefinitions: Tool[] = [
     name: "get_moorage",
     title: "Get moorage details",
     description:
-      "Get all details for specific moorage by ID, including location, facilities, and usage statistics. This is useful for understanding the characteristics and availability of a particular moorage.",
+      "Get full details for a specific moorage by ID: location, stay type, and usage statistics.",
     inputSchema: {
       type: "object",
       properties: {
@@ -254,9 +182,14 @@ const toolDefinitions: Tool[] = [
   },
   {
     name: "get_moorage_stays",
-    title: "Get moorage stays",
+    title: "Get all stays at one moorage",
     description:
-      "Get all stays at a specific moorage, including details like start/end times, duration, and type (anchor, dock, mooring buoy). This is useful for analyzing usage patterns at a particular moorage.",
+      "Get the chronological list of every stay recorded at a specific moorage, " +
+      "identified by moorage ID. Returns stay type and duration alongside the " +
+      "inbound log (which voyage arrived here) and the outbound log (which voyage departed from here). " +
+      "Prefer this over get_stays when you already have a moorage ID and want its full visit history. " +
+      "Use for single-location questions: 'how many times have I been to this anchorage?', " +
+      "'how long did I spend here in total?', 'what trip brought me here last time?'.",
     inputSchema: {
       type: "object",
       properties: {
@@ -267,9 +200,15 @@ const toolDefinitions: Tool[] = [
   },
   {
     name: "get_stays",
-    title: "Get stays",
+    title: "List stays",
     description:
-      "Get a summary of all stays at moorages/marinas/anchorages with basic details like start/end times, duration, and type (anchor, dock, mooring buoy). This is useful for analyzing moorage usage patterns and identifying frequently used locations.",
+      "List all stays across every moorage, with arrival/departure times, duration, " +
+      "and stay type (Anchor, Dock, Mooring Buoy). " +
+      "Each stay also includes the preceding log (what voyage brought you there) " +
+      "and the following log (what voyage you left on). " +
+      "Supports filtering by date range (arrived/departed), minimum duration, stay type, and pagination. " +
+      "Use for cross-location questions: 'show me all my anchor stays last month', " +
+      "'longest stays this year', 'time spent docked vs anchored'.",
     inputSchema: {
       type: "object",
       properties: {
@@ -284,7 +223,6 @@ const toolDefinitions: Tool[] = [
         duration: {
           type: "number",
           description: "Filter stays by minimum duration (in hours)",
-          required: false,
         },
         limit: {
           type: "number",
@@ -303,7 +241,7 @@ const toolDefinitions: Tool[] = [
     name: "get_stay",
     title: "Get stay details",
     description:
-      "Get all details for specific stay at moorage by ID, including the moorage information, duration, and type (anchor, dock, mooring buoy). This is useful for analyzing specific moorage events in detail to understand the conditions and context of each stay.",
+      "Get full details for a specific stay by ID: moorage information, arrival/departure times, duration, and stay type (anchor, dock, mooring buoy).",
     inputSchema: {
       type: "object",
       properties: {
@@ -314,248 +252,14 @@ const toolDefinitions: Tool[] = [
   },
   {
     name: "get_monitoring_live",
-    title: "Get live monitoring data",
+    title: "Get live vessel position and sensors",
     description:
-      "Get current live monitoring data including sensors, position, and other real-time information. This is useful for monitoring the vessel's current status and environmental conditions.",
+      "Get the vessel's latest position, speed, heading, and sensor readings: wind, depth, battery, solar, temperature, humidity, pressure, and tank levels. Use to answer questions about where the vessel is now or its current conditions.",
     inputSchema: {
       type: "object",
       properties: {},
     },
-    outputSchema: {
-      type: "object",
-      properties: {
-        type: {},
-        required: ["time", "offline", "data", "geojson", "name", "status"],
-        properties: {
-          time: {
-            type: "string",
-            format: "date-time",
-          },
-          offline: {
-            type: "boolean",
-          },
-          name: {
-            type: "string",
-          },
-          status: {
-            type: "string",
-          },
-          watertemperature: {
-            type: ["number", "null"],
-          },
-          insidetemperature: {
-            type: ["number", "null"],
-          },
-          outsidetemperature: {
-            type: ["number", "null"],
-          },
-          windspeedoverground: {
-            type: ["number", "null"],
-          },
-          winddirectiontrue: {
-            type: ["number", "null"],
-          },
-          insidehumidity: {
-            type: ["number", "null"],
-          },
-          outsidehumidity: {
-            type: ["number", "null"],
-          },
-          outsidepressure: {
-            type: ["number", "null"],
-          },
-          insidepressure: {
-            type: ["number", "null"],
-          },
-          batterycharge: {
-            type: ["number", "null"],
-          },
-          batteryvoltage: {
-            type: ["number", "null"],
-          },
-          depth: {
-            type: ["number", "null"],
-          },
-          solarpower: {
-            type: ["number", "null"],
-          },
-          solarvoltage: {
-            type: ["number", "null"],
-          },
-          tanklevel: {
-            type: ["number", "null"],
-          },
-          outsidepressurehistory: {
-            type: ["array", "null"],
-          },
-          geojson: {
-            type: "object",
-            required: ["type", "geometry", "properties"],
-            properties: {
-              type: {
-                type: "string",
-                const: "Feature",
-              },
-              geometry: {
-                type: "object",
-                required: ["type", "coordinates"],
-                properties: {
-                  type: {
-                    type: "string",
-                    const: "Point",
-                  },
-                  coordinates: {
-                    type: "array",
-                    items: [
-                      {
-                        type: "number",
-                        minimum: -180,
-                        maximum: 180,
-                      },
-                      {
-                        type: "number",
-                        minimum: -90,
-                        maximum: 90,
-                      },
-                    ],
-                    minItems: 2,
-                    maxItems: 2,
-                  },
-                },
-              },
-              properties: {
-                type: "object",
-                required: ["name", "time", "latitude", "longitude"],
-                properties: {
-                  name: { type: "string" },
-                  time: { type: "string", format: "date-time" },
-                  status: { type: "string" },
-                  latitude: { type: "number" },
-                  longitude: { type: "number" },
-                  truewindspeed: { type: ["number", "string", "null"] },
-                  speedoverground: { type: ["number", "null"] },
-                  truewinddirection: { type: ["number", "string", "null"] },
-                  windspeedapparent: { type: ["number", "null"] },
-                },
-              },
-            },
-          },
-          live: {
-            type: "object",
-            required: ["type", "features"],
-            properties: {
-              type: {
-                type: "string",
-                const: "FeatureCollection",
-              },
-              features: {
-                type: "array",
-                items: {
-                  type: "object",
-                  required: ["type", "geometry", "properties"],
-                  properties: {
-                    type: {
-                      type: "string",
-                    },
-                    geometry: {
-                      type: "object",
-                      required: ["type", "coordinates"],
-                      properties: {
-                        type: {
-                          type: "string",
-                        },
-                        coordinates: {
-                          type: "array",
-                          items: { type: "array", items: { type: "number" } },
-                        },
-                      },
-                    },
-                    properties: {
-                      type: "object",
-                    },
-                  },
-                },
-              },
-            },
-          },
-          data: {
-            type: "object",
-            properties: {
-              cog: { type: ["number", "null"] },
-              sog: { type: ["number", "null"] },
-              heading: { type: ["number", "null"] },
-              battery: {
-                type: "object",
-                properties: {
-                  charge: { type: ["number", "null"] },
-                  voltage: { type: ["number", "null"] },
-                },
-              },
-              solar: {
-                type: "object",
-                properties: {
-                  power: { type: ["number", "null"] },
-                  voltage: { type: ["number", "null"] },
-                },
-              },
-              wind: {
-                type: "object",
-                properties: {
-                  speed: { type: ["number", "null"] },
-                  direction: { type: ["number", "null"] },
-                },
-              },
-              water: {
-                type: "object",
-                properties: {
-                  depth: { type: ["number", "null"] },
-                  temperature: { type: ["number", "null"] },
-                },
-              },
-              humidity: {
-                type: "object",
-                properties: {
-                  inside: { type: ["number", "null"] },
-                  outside: { type: ["number", "null"] },
-                },
-              },
-              presure: {
-                type: "object",
-                properties: {
-                  inside: { type: ["number", "null"] },
-                  outside: { type: ["number", "null"] },
-                },
-              },
-              temperature: {
-                type: "object",
-                properties: {
-                  inside: { type: ["number", "null"] },
-                  outside: { type: ["number", "null"] },
-                },
-              },
-              tank: {
-                type: "object",
-                properties: {
-                  level: { type: ["number", "null"] },
-                },
-              },
-              anchor: {
-                type: "object",
-                properties: {
-                  radius: { type: ["number", "null"] },
-                  position: {
-                    type: ["array", "null"],
-                    items: { type: "number" },
-                  },
-                },
-              },
-            },
-            additionalProperties: true,
-          },
-        },
-      },
     },
-  },
   {
     name: "get_monitoring_history",
     title: "Get recent sensor history",
@@ -586,29 +290,6 @@ const toolDefinitions: Tool[] = [
       type: "object",
       properties: {},
     },
-    outputSchema: {
-      type: "object",
-      required: [
-        "first",
-        "last",
-        "username",
-        "has_vessel",
-        "created_at",
-        "preferences",
-      ],
-      properties: {
-        first: { type: "string" },
-        last: { type: "string" },
-        username: { type: "string" },
-        has_vessel: { type: "boolean" },
-        created_at: { type: "string", format: "date-time" },
-        preferences: {
-          type: "object",
-          additionalProperties: true,
-        },
-      },
-      additionalProperties: true,
-    },
   },
   {
     name: "get_stats",
@@ -633,8 +314,8 @@ const toolDefinitions: Tool[] = [
     title: "Get vessel movement animation data",
     description:
       "Retrieve vessel GPS positions for a date range, formatted for timelapse replay or animation. " +
-      "Returns either discrete GPS points or continuous track lines (linestring). " +
-      "Use when the user wants to animate, replay, or visualize their movements over a specific period.",
+      "Use when the user wants to animate, replay, or visualize their movements over a specific period. " +
+      "Requires explicit start and end dates.",
     inputSchema: {
       type: "object",
       properties: {
@@ -643,7 +324,7 @@ const toolDefinitions: Tool[] = [
         format: {
           type: "string",
           enum: ["points", "linestring"],
-          description: "Data format for visualization",
+          description: "'points' returns discrete GPS positions for an animated dot replay;\n'linestring' returns a continuous track line for drawing a route on a map.",
           default: "points",
         },
       },
@@ -652,9 +333,9 @@ const toolDefinitions: Tool[] = [
   },
   {
     name: "get_badges",
-    title: "Get vessel badges",
+    title: "Get sailing achievement badges",
     description:
-      "Get vessel achievements and earned badges based on voyage milestones (e.g., distance sailed, number of anchorages, night sailing). Useful for summarizing accomplishments.",
+      "Get achievements and earned badges based on voyage milestones: distance sailed, number of anchorages visited, night sailing, and other accomplishments.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -664,7 +345,11 @@ const toolDefinitions: Tool[] = [
     name: "get_moorage_arrivals_departures",
     title: "Get moorage arrivals and departures",
     description:
-      "Get all voyages (logs) that departed from or arrived at a specific moorage, identified by its ID. Useful for understanding traffic patterns at a particular location or tracing all trips associated with a home port or frequent stop.",
+      "Get all voyage logs that departed from or arrived at a specific moorage, identified by its ID. " +
+      "Returns log IDs, names, start/end times, and distance for each matching trip. " +
+      "Use when asked: 'which trips started from my home port?', 'what voyages brought me to this anchorage?', " +
+      "'show me every trip that passed through [place]', 'trace all routes to/from this marina'. " +
+      "Obtain the moorage ID first from get_moorages, get_moorage, or get_log.",
     inputSchema: {
       type: "object",
       properties: {
@@ -714,17 +399,6 @@ const toolDefinitions: Tool[] = [
       "and monitoring (live sensors: wind, depth, battery, solar, temperature, pressure, tanks). " +
       "Use when asked: 'what data do you have?', 'what can you tell me about my sailing?', " +
       "'overview of my history', or when the query needs broad sailing context to answer well.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "get_initial_context",
-    title: "Get PostgSail context",
-    description:
-      "Get comprehensive PostgSail context and documentation to understand available data and usage patterns",
     inputSchema: {
       type: "object",
       properties: {},
