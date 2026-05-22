@@ -170,11 +170,11 @@ export async function startHttpServer() {
     <h3>🔧 Available Methods</h3>
     <ul>
       <li><strong>initialize</strong> - Initialize MCP connection</li>
-      <li><strong>tools/list</strong> - List available tools (15 tools)</li>
+      <li><strong>tools/list</strong> - List available tools</li>
       <li><strong>tools/call</strong> - Execute a tool (requires JWT authentication)</li>
-      <li><strong>prompts/list</strong> - List available prompts (6 prompts)</li>
+      <li><strong>prompts/list</strong> - List available prompts</li>
       <li><strong>prompts/get</strong> - Get a specific prompt</li>
-      <li><strong>resources/list</strong> - List available resources (3 resources)</li>
+      <li><strong>resources/list</strong> - List available resources</li>
       <li><strong>resources/read</strong> - Read a specific resource</li>
     </ul>
   </div>
