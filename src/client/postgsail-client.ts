@@ -425,7 +425,7 @@ class PostgSailClient {
 
   // Timelapse
   async getTimelapse(payload: any) {
-    return this.request(`rpc/export_logbooks_geojson_linestring_trips_fn?${payload}`, {
+    return this.request(`rpc/export_logbooks_geojson_linestring_trips_fn?`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
