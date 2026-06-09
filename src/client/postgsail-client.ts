@@ -45,7 +45,7 @@ class PostgSailClient {
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "User-Agent": "postgsail.mcp v0.0.8",
+      "User-Agent": "postgsail.mcp v0.0.9",
       ...(options.headers as Record<string, string>),
     };
 
@@ -92,8 +92,7 @@ class PostgSailClient {
     } catch (error) {
       if (error instanceof AuthError) throw error;
       throw new Error(
-        `Request to ${endpoint} failed: ${
-          error instanceof Error ? error.message : String(error)
+        `Request to ${endpoint} failed: ${error instanceof Error ? error.message : String(error)
         }`
       );
     }
@@ -111,7 +110,7 @@ class PostgSailClient {
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "User-Agent": "postgsail.mcp v0.0.8",
+      "User-Agent": "postgsail.mcp v0.0.9",
       ...(options.headers as Record<string, string>),
     };
 
@@ -147,8 +146,7 @@ class PostgSailClient {
     } catch (error) {
       if (error instanceof AuthError) throw error;
       throw new Error(
-        `Request to ${endpoint} failed: ${
-          error instanceof Error ? error.message : String(error)
+        `Request to ${endpoint} failed: ${error instanceof Error ? error.message : String(error)
         }`
       );
     }
@@ -437,31 +435,116 @@ class PostgSailClient {
     );
   }
 
-  async findAnchoragesNear({
-    latitude,
-    longitude,
-    radius_nm = 50,
-    stay_type = "All",
-    unvisited_only = false,
+  async findCommunityRoutes({
+    from_h3,
+    to_h3,
+    k = 1,
   }: {
-    latitude: number;
-    longitude: number;
-    radius_nm?: number;
-    stay_type?: string;
-    unvisited_only?: boolean;
+    from_h3: string;
+    to_h3: string;
+    k?: number;
   }) {
-    const stayTypeId = stayTypeToId[stay_type] ?? -1;
-    return this.request("rpc/find_anchorages_near_fn", {
+    return this.request("rpc/mcp_community_routes_h3_fn", {
+      method: "POST",
+      body: JSON.stringify({ _from_h3: from_h3, _to_h3: to_h3, _k: k }),
+    });
+  }
+
+  async findSimilarTrips({
+    query_embedding,
+    limit = 5,
+  }: {
+    query_embedding: number[];
+    limit?: number;
+  }) {
+    return this.request("rpc/mcp_community_semantic_search_fn", {
+      method: "POST",
+      body: JSON.stringify({ _query_embedding: query_embedding, _limit: limit }),
+    });
+  }
+
+  async findAnchoragesNear({
+    lat,
+    lng,
+    radius_nm = 20,
+    stay_type,
+  }: {
+    lat: number;
+    lng: number;
+    radius_nm?: number;
+    stay_type?: string; // "Anchor" | "Dock" | "Mooring Buoy" | undefined = all
+  }) {
+    return this.request("rpc/mcp_community_moorages_fn", {
       method: "POST",
       body: JSON.stringify({
-        _lat: latitude,
-        _lon: longitude,
-        _radius: radius_nm,
-        _stay_type_id: stayTypeId === -1 ? null : stayTypeId,
-        _unvisited: unvisited_only,
+        _lat: lat,
+        _lng: lng,
+        _radius_nm: radius_nm,
+        // omit _stay_type entirely when not provided — SQL DEFAULT NULL returns all types
+        ...(stay_type !== undefined && { _stay_type: stay_type }),
       }),
     });
   }
+
+  async getReachableMoorages({
+    lat,
+    lng,
+    max_hours = 3,
+    wind_tws_kn,
+    wind_twd_deg,
+    tacking_ok = true,
+    stay_type,
+  }: {
+    lat: number;
+    lng: number;
+    max_hours?: number;
+    wind_tws_kn?: number;
+    wind_twd_deg?: number;
+    tacking_ok?: boolean;
+    stay_type?: string;
+  }) {
+    return this.request("rpc/mcp_community_moorages_reachable_fn", {
+      method: "POST",
+      body: JSON.stringify({
+        _lat: lat,
+        _lng: lng,
+        _max_hours: max_hours,
+        _tacking_ok: tacking_ok,
+        // optional — omit when not provided; SQL falls back to 6 kn polar default
+        ...(wind_tws_kn !== undefined && { _wind_tws_kn: wind_tws_kn }),
+        ...(wind_twd_deg !== undefined && { _wind_twd_deg: wind_twd_deg }),
+        ...(stay_type !== undefined && { _stay_type: stay_type }),
+      }),
+    });
+  }
+
+  async getSailRecommendation({
+    tws_kn,
+    twd_deg,
+    target_bearing_deg,
+  }: {
+    tws_kn: number;
+    twd_deg: number;
+    target_bearing_deg?: number;
+  }) {
+    return this.request("rpc/mcp_sail_recommendation_fn", {
+      method: "POST",
+      body: JSON.stringify({
+        _tws_kn: tws_kn,
+        _twd_deg: twd_deg,
+        // omit when not provided — SQL returns generic Beaufort advice only
+        ...(target_bearing_deg !== undefined && { _target_bearing_deg: target_bearing_deg }),
+      }),
+    });
+  }
+
+  async getEngineHours() {
+    return this.request("rpc/mcp_engine_hours_fn", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
 }
 
 export default PostgSailClient;
