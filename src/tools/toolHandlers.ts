@@ -320,6 +320,15 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
         };
       }
 
+      case "get_vessel_polar": {
+        const result = await client.getVesselPolar();
+        const mapping = unwrapArray(result, "vessel polar");
+        if (!mapping[0]?.polar) throw new Error("No vessel polar data found");
+        return {
+          content: [{ type: "text", text: JSON.stringify(mapping[0], null, 2) }],
+        };
+      }
+
       case "get_timelapse_data": {
         if (!args?.startDate || !args?.endDate) {
           throw new Error("startDate and endDate are required");
@@ -340,16 +349,49 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
         };
       }
 
-      case "find_anchorages_near": {
-        if (args?.latitude === undefined || args?.longitude === undefined) {
-          throw new Error("latitude and longitude are required");
+      case "find_community_routes": {
+        if (!args?.from_h3 || !args?.to_h3) {
+          throw new Error("from_h3 and to_h3 are required");
         }
+        const result = await client.findCommunityRoutes({
+          from_h3: args.from_h3 as string,
+          to_h3: args.to_h3 as string,
+          k: (args.k as number) ?? 1,
+        });
+        const routesData = unwrapData(result, "community routes");
+        return {
+          content: [{ type: "text", text: JSON.stringify(routesData, null, 2) }],
+        };
+      }
+
+      case "find_similar_trips": {
+        if (!args?.query_embedding) {
+          throw new Error("query_embedding is required");
+        }
+        const result = await client.findSimilarTrips({
+          query_embedding: args.query_embedding as number[],
+          limit: (args.limit as number) ?? 5,
+        });
+        const similarData = unwrapData(result, "similar trips");
+        return {
+          content: [{ type: "text", text: JSON.stringify(similarData, null, 2) }],
+        };
+      }
+
+      case "find_anchorages_near": {
+        if (args?.lat === undefined || args?.lng === undefined) {
+          throw new Error("lat and lng are required");
+        }
+        const stayType =
+          args.stay_type && args.stay_type !== "All"
+            ? (args.stay_type as string)
+            : undefined;
+
         const result = await client.findAnchoragesNear({
-          latitude: args.latitude as number,
-          longitude: args.longitude as number,
-          radius_nm: (args.radius_nm as number) || 50,
-          stay_type: (args.stay_type as string) || "All",
-          unvisited_only: (args.unvisited_only as boolean) || false,
+          lat: args.lat as number,
+          lng: args.lng as number,
+          radius_nm: (args.radius_nm as number) ?? 20,
+          stay_type: stayType,
         });
         const anchorages = unwrapData(result, "anchorages near");
         return {
@@ -359,6 +401,53 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
               text: JSON.stringify(anchorages, null, 2) + paginationNote(result),
             },
           ],
+        };
+      }
+
+      case "get_reachable_moorages": {
+        if (args?.lat === undefined || args?.lng === undefined) {
+          throw new Error("lat and lng are required");
+        }
+        const stayType =
+          args.stay_type && args.stay_type !== "All"
+            ? (args.stay_type as string)
+            : undefined;
+
+        const result = await client.getReachableMoorages({
+          lat: args.lat as number,
+          lng: args.lng as number,
+          max_hours: (args.max_hours as number) ?? 3,
+          wind_tws_kn: args.wind_tws_kn as number | undefined,
+          wind_twd_deg: args.wind_twd_deg as number | undefined,
+          tacking_ok: (args.tacking_ok as boolean) ?? true,
+          stay_type: stayType,
+        });
+        const moorages = unwrapData(result, "reachable moorages");
+        return {
+          content: [{ type: "text", text: JSON.stringify(moorages, null, 2) }],
+        };
+      }
+
+      case "get_sail_recommendation": {
+        if (args?.tws_kn === undefined || args?.twd_deg === undefined) {
+          throw new Error("tws_kn and twd_deg are required");
+        }
+        const result = await client.getSailRecommendation({
+          tws_kn: args.tws_kn as number,
+          twd_deg: args.twd_deg as number,
+          target_bearing_deg: args.target_bearing_deg as number | undefined,
+        });
+        const recommendation = unwrapData(result, "sail recommendation");
+        return {
+          content: [{ type: "text", text: JSON.stringify(recommendation, null, 2) }],
+        };
+      }
+
+      case "get_engine_hours": {
+        const result = await client.getEngineHours();
+        const data = unwrapData(result, "engine hours");
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
       }
 

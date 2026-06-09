@@ -24,7 +24,17 @@ const toolDefinitions: Tool[] = [
     name: "get_vessel",
     title: "Get vessel metadata",
     description:
-      "Returns the vessel's dimensions (beam, length, height), ship type (sailing, motor, etc.), country of registration, make/model, and platform/plugin version.",
+      "Returns the vessel's dimensions (beam, length, height), ship type (sailing, motor, etc.), country of registration, make/model, platform/plugin version, it may include vessel image and specifications if present.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "get_vessel_polar",
+    title: "Get vessel Polar metadata",
+    description:
+      "Returns the vessel's Polar (CSV) data if present in an OCR format. Useful for performance analysis and optimization.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -259,7 +269,7 @@ const toolDefinitions: Tool[] = [
       type: "object",
       properties: {},
     },
-    },
+  },
   {
     name: "get_monitoring_history",
     title: "Get recent sensor history",
@@ -359,32 +369,30 @@ const toolDefinitions: Tool[] = [
     },
   },
   {
-    name: "find_anchorages_near",
-    title: "Find anchorages near a location",
+    name: "get_engine_hours",
+    title: "Get engine hours and service status",
     description:
-      "Find and search for anchorages, marinas, moorings, or docks near a given position. " +
-      "Use when user asks: 'find a quiet anchorage near X', 'where can I anchor near Y', " +
-      "'anchorages I haven't visited nearby', 'good shelter close to [place]', " +
-      "'what moorages are around here'. " +
-      "Requires lat/lon — resolve place names from context or prior knowledge first.",
+      "Returns engine runtime statistics for the current vessel, computed from " +
+      "SignalK propulsion.%.runTime data stored per logbook entry.\n\n" +
+      "Returns four fields:\n" +
+      "• total_engine_hours: lifetime engine hours across all logbook entries.\n" +
+      "• last_30d_hours: engine hours in the last 30 days — useful for recent usage trends.\n" +
+      "• estimated_service_due_hours: the configured service interval in hours " +
+      "  (default 200h, overridable via vessel preferences). Compare against " +
+      "  total_engine_hours to determine if service is overdue.\n" +
+      "• hours_since_last_service: always null until last service date is recorded " +
+      "  in the vessel settings — tell the user to log their last service if this is null.\n\n" +
+      "Returns null for all fields if the vessel has no logbook entries with engine data " +
+      "(i.e. vessel has no engine or SignalK is not reporting propulsion.%.runTime).\n\n" +
+      "Use when asked: 'how many engine hours do I have?', " +
+      "'is my engine service due?', " +
+      "'how much did I motor this month?', " +
+      "'when should I service my engine?', " +
+      "'what are my engine hours?'.",
     inputSchema: {
       type: "object",
-      properties: {
-        latitude: { type: "number", description: "Center latitude (WGS84)" },
-        longitude: { type: "number", description: "Center longitude (WGS84)" },
-        radius_nm: { type: "number", description: "Search radius in nautical miles (default 50)", default: 50 },
-        stay_type: {
-          type: "string",
-          enum: ["All", "Anchor", "Dock", "Mooring Buoy"],
-          default: "All",
-        },
-        unvisited_only: {
-          type: "boolean",
-          description: "If true, only return moorages this vessel has never visited",
-          default: false,
-        },
-      },
-      required: ["latitude", "longitude"],
+      properties: {},
+      required: [],
     },
   },
   {
@@ -403,6 +411,200 @@ const toolDefinitions: Tool[] = [
       type: "object",
       properties: {},
       additionalProperties: false,
+    },
+  },
+  {
+    name: "find_community_routes",
+    title: "Find community passages between two places",
+    description:
+      "Search the PostgSail community for recorded passages between two geographic areas " +
+      "using H3 spatial indexing. Returns per-trip stats from real passages: distance (NM), " +
+      "duration (hours), avg speed (knots), max wind (knots), and tortuosity " +
+      "(1.0=straight line, >1.5=heavy tacking or winding route).\n\n" +
+      "You must supply H3 res-5 cell strings — resolve place names yourself:\n" +
+      "• Named route: use your geographic knowledge → coordinates → " +
+      "  h3.latlng_to_cell(lat, lng, 5). " +
+      "  Example: Gothenburg (57.71, 11.97) → '851f97fffffffff'.\n" +
+      "• User's own trip: call get_log_spatial first, read from_h3 and to_h3 directly.\n" +
+      "• k controls neighbourhood size: 0=exact cell, 1=7-cell ring (~252km² buffer, default), " +
+      "  2=19-cell ring. Larger k = broader match, fewer misses, more noise.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from_h3: {
+          type: "string",
+          description:
+            "H3 res-5 cell index for the departure area. " +
+            "Compute with h3.latlng_to_cell(lat, lng, 5) or read from get_log_spatial.from_h3.",
+        },
+        to_h3: {
+          type: "string",
+          description:
+            "H3 res-5 cell index for the arrival area. " +
+            "Compute with h3.latlng_to_cell(lat, lng, 5) or read from get_log_spatial.to_h3.",
+        },
+        k: {
+          type: "number",
+          description:
+            "Ring size: 0=exact cell match, 1=7-cell ring (default), 2=19-cell ring. " +
+            "Use 1 for most passages. Use 0 only when you have a precise H3 cell and want strict matching.",
+          default: 1,
+        },
+      },
+      required: ["from_h3", "to_h3"],
+    },
+  },
+
+  {
+    name: "find_similar_trips",
+    title: "Find community trips similar to a description",
+    description:
+      "Semantic similarity search across public community logbooks using pgvector HNSW. " +
+      "Finds trips whose route character and conditions are semantically similar to a text description.\n\n" +
+      "Embed the query text using the same 384-dim model as the PostgSail pipeline " +
+      "(e.g. all-MiniLM-L6-v2) and pass the float array as query_embedding.\n\n" +
+      "Returns: from/to moorage names, date, distance, duration, and similarity score [0–1]. " +
+      "Only trips from vessels that have opted into public data sharing are returned.\n\n" +
+      "Use when asked: 'find trips like a coastal Med cruise in summer', " +
+      "'who else has sailed an overnight passage in light winds through the archipelago?'",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query_embedding: {
+          type: "array",
+          items: { type: "number" },
+          description:
+            "384-dimensional float vector produced by embedding the user's query text. " +
+            "Must use the same model as the PostgSail embedding pipeline.",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of similar trips to return (default: 5).",
+          default: 5,
+        },
+      },
+      required: ["query_embedding"],
+    },
+  },
+
+  {
+    name: "find_anchorages_near",
+    title: "Find anchorages near a location",
+    description:
+      "Find anchorages, marinas, moorings, or docks near a position from the PostgSail " +
+      "community (vessels that have opted into public data sharing).\n\n" +
+      "Resolve place names to coordinates yourself before calling:\n" +
+      "• 'near me' / 'nearby': call get_monitoring_live first for current lat/lon.\n" +
+      "• Named place: use your geographic knowledge " +
+      "  (e.g. Gothenburg ≈ 57.71°N 11.97°E; Ibiza ≈ 38.91°N 1.43°E).\n\n" +
+      "stay_type: pass null or omit for all types. " +
+      "Default radius is 20nm — increase for sparse areas.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        lat: {
+          type: "number",
+          description: "Center latitude (WGS84 decimal degrees)",
+        },
+        lng: {
+          type: "number",
+          description: "Center longitude (WGS84 decimal degrees)",
+        },
+        radius_nm: {
+          type: "number",
+          description: "Search radius in nautical miles (default 20).",
+          default: 20,
+        },
+        stay_type: {
+          type: "string",
+          enum: ["Anchor", "Dock", "Mooring Buoy"],
+          description: "Filter by stay type. Omit or pass null for all types.",
+        },
+      },
+      required: ["lat", "lng"],
+    },
+  },
+
+  {
+    name: "get_reachable_moorages",
+    title: "Find moorages reachable within N hours",
+    description:
+      "Find community moorages reachable within N sailing hours from a given position, " +
+      "using the vessel's polar curve to estimate VMG at the given wind speed. " +
+      "Falls back to 6 knots if no polar is loaded or no wind data is provided.\n\n" +
+      "The response includes estimated_sog_kn (speed used) and polar_used (bool) " +
+      "so you can tell the user whether their polar was applied or a fallback was used.\n\n" +
+      "wind_twd_deg is accepted but bearing filtering is not yet implemented (reserved). " +
+      "Use when asked: 'where can I be tonight?', 'which anchorages can I reach before dark?'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        lat: {
+          type: "number",
+          description: "Current latitude (WGS84). Call get_monitoring_live first if unknown.",
+        },
+        lng: {
+          type: "number",
+          description: "Current longitude (WGS84). Call get_monitoring_live first if unknown.",
+        },
+        max_hours: {
+          type: "number",
+          description: "Maximum sailing time in hours (default 3).",
+          default: 3,
+        },
+        wind_tws_kn: {
+          type: "number",
+          description: "True wind speed in knots. Used with polar to estimate VMG.",
+        },
+        wind_twd_deg: {
+          type: "number",
+          description: "True wind direction in degrees (reserved for future tacking filter).",
+        },
+        tacking_ok: {
+          type: "boolean",
+          description: "Reserved for future upwind bearing filter. Currently ignored.",
+          default: true,
+        },
+        stay_type: {
+          type: "string",
+          enum: ["Anchor", "Dock", "Mooring Buoy"],
+          description: "Filter by stay type. Omit for all types.",
+        },
+      },
+      required: ["lat", "lng"],
+    },
+  },
+
+  {
+    name: "get_sail_recommendation",
+    title: "Recommend sail configuration for current conditions",
+    description:
+      "Given wind conditions and the vessel's polar, recommend sail configuration " +
+      "(headsail, main, reefing) and point of sail. Returns has_polar (bool) — " +
+      "if false, advice is generic Beaufort-scale guidance only, not boat-specific. " +
+      "Returns polar_vmg_kn when a polar match is found and target_bearing_deg is provided.\n\n" +
+      "Use when asked: 'what sails should I set?', 'should I reef?', " +
+      "'best angle to the wind for this passage?', 'will we be close-hauled?'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tws_kn: {
+          type: "number",
+          description: "True wind speed in knots.",
+        },
+        twd_deg: {
+          type: "number",
+          description: "True wind direction in degrees (0–360, where wind is coming from).",
+        },
+        target_bearing_deg: {
+          type: "number",
+          description:
+            "Desired course to make good (degrees). " +
+            "Provide to get point-of-sail and polar VMG for that heading. " +
+            "Omit for generic wind-strength advice only.",
+        },
+      },
+      required: ["tws_kn", "twd_deg"],
     },
   },
 ];
