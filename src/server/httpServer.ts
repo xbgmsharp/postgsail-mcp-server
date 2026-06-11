@@ -251,7 +251,24 @@ export async function startHttpServer() {
 
             if (!clientToken) {
               logger.warn(`tools/call [${toolName}] rejected — no token provided | ip=${clientIp}`);
-              res.writeHead(401, { "Content-Type": "application/json" });
+              // If you send HTTP 401, the MCP client/Inspector treats it as a transport error and never reads the JSON-RPC body.
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(
+                JSON.stringify({
+                  jsonrpc: "2.0",
+                  id,
+                  result: {
+                    content: [
+                      {
+                        type: "text",
+                        text: "HTTP 401 Authentication required. Provide PostgSail JWT token in Authorization header.",
+                      }
+                    ],
+                    isError: true
+                  }
+                })
+              );
+              /* this is protocol error
               res.end(
                 JSON.stringify({
                   jsonrpc: "2.0",
@@ -259,9 +276,11 @@ export async function startHttpServer() {
                   error: {
                     code: -32001,
                     message: "Authentication required. Provide PostgSail JWT token in Authorization header.",
+                    data: "Authentication required. Provide PostgSail JWT token in Authorization header.",
                   },
                 })
               );
+              */
               return;
             }
 
@@ -269,7 +288,24 @@ export async function startHttpServer() {
               activeClient = await getClientForToken(clientToken);
             } catch (error: any) {
               logger.warn(`tools/call [${toolName}] rejected — invalid token | ip=${clientIp}`, error);
-              res.writeHead(401, { "Content-Type": "application/json" });
+              // If you send HTTP 401, the MCP client/Inspector treats it as a transport error and never reads the JSON-RPC body.
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(
+                JSON.stringify({
+                  jsonrpc: "2.0",
+                  id,
+                  result: {
+                    content: [
+                      {
+                        type: "text",
+                        text: `HTTP 401 Invalid or expired token: ${error.message}`,
+                      }
+                    ],
+                    isError: true
+                  }
+                })
+              );
+              /* this is protocol error
               res.end(
                 JSON.stringify({
                   jsonrpc: "2.0",
@@ -280,6 +316,7 @@ export async function startHttpServer() {
                   },
                 })
               );
+              */
               return;
             }
           }
@@ -334,6 +371,17 @@ export async function startHttpServer() {
             case "prompts/get":
               result = await handlePromptCall({ method: "prompts/get", params });
               break;
+            case "notifications/initialized":
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ jsonrpc: "2.0", id }));
+              return;
+            // Handle all notifications silently
+            case "notifications/cancelled":
+            case "notifications/progress":
+            case "notifications/message":
+              res.writeHead(204);
+              res.end();
+              return;
             default:
               throw new Error(`Unknown method: ${method}`);
           }
