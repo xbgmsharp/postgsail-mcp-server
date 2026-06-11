@@ -25,6 +25,7 @@ export type ViewResult = {
 class PostgSailClient {
   private baseURL: string;
   private token?: string;
+  private cachedPublicVessel: string | null | undefined = undefined;
 
   constructor(baseURL: string) {
     if (!baseURL) {
@@ -421,6 +422,17 @@ class PostgSailClient {
     return this.requestRPC("rpc/profile_fn");
   }
 
+  async getPublicVessel(): Promise<string | null> {
+    if (this.cachedPublicVessel !== undefined) return this.cachedPublicVessel;
+    try {
+      const data = await this.getProfile();
+      this.cachedPublicVessel = data?.profile?.preferences?.public_vessel ?? null;
+    } catch {
+      this.cachedPublicVessel = null;
+    }
+    return this.cachedPublicVessel ?? null;
+  }
+
   // Timelapse
   async getTimelapse(payload: any) {
     return this.request(`rpc/export_logbooks_geojson_linestring_trips_fn?`, {
@@ -435,88 +447,9 @@ class PostgSailClient {
     );
   }
 
-  async findCommunityRoutes({
-    from_h3,
-    to_h3,
-    k = 1,
-  }: {
-    from_h3: string;
-    to_h3: string;
-    k?: number;
-  }) {
-    return this.request("rpc/mcp_community_routes_h3_fn", {
-      method: "POST",
-      body: JSON.stringify({ _from_h3: from_h3, _to_h3: to_h3, _k: k }),
-    });
-  }
-
-  async findSimilarTrips({
-    query_embedding,
-    limit = 5,
-  }: {
-    query_embedding: number[];
-    limit?: number;
-  }) {
-    return this.request("rpc/mcp_community_semantic_search_fn", {
-      method: "POST",
-      body: JSON.stringify({ _query_embedding: query_embedding, _limit: limit }),
-    });
-  }
-
-  async findAnchoragesNear({
-    lat,
-    lng,
-    radius_nm = 20,
-    stay_type,
-  }: {
-    lat: number;
-    lng: number;
-    radius_nm?: number;
-    stay_type?: string; // "Anchor" | "Dock" | "Mooring Buoy" | undefined = all
-  }) {
-    return this.request("rpc/mcp_community_moorages_fn", {
-      method: "POST",
-      body: JSON.stringify({
-        _lat: lat,
-        _lng: lng,
-        _radius_nm: radius_nm,
-        // omit _stay_type entirely when not provided — SQL DEFAULT NULL returns all types
-        ...(stay_type !== undefined && { _stay_type: stay_type }),
-      }),
-    });
-  }
-
-  async getReachableMoorages({
-    lat,
-    lng,
-    max_hours = 3,
-    wind_tws_kn,
-    wind_twd_deg,
-    tacking_ok = true,
-    stay_type,
-  }: {
-    lat: number;
-    lng: number;
-    max_hours?: number;
-    wind_tws_kn?: number;
-    wind_twd_deg?: number;
-    tacking_ok?: boolean;
-    stay_type?: string;
-  }) {
-    return this.request("rpc/mcp_community_moorages_reachable_fn", {
-      method: "POST",
-      body: JSON.stringify({
-        _lat: lat,
-        _lng: lng,
-        _max_hours: max_hours,
-        _tacking_ok: tacking_ok,
-        // optional — omit when not provided; SQL falls back to 6 kn polar default
-        ...(wind_tws_kn !== undefined && { _wind_tws_kn: wind_tws_kn }),
-        ...(wind_twd_deg !== undefined && { _wind_twd_deg: wind_twd_deg }),
-        ...(stay_type !== undefined && { _stay_type: stay_type }),
-      }),
-    });
-  }
+  // =========================================================================
+  // COMMUNITY DATA — sailors who opted into public sharing
+  // =========================================================================
 
   async getSailRecommendation({
     tws_kn,
@@ -545,6 +478,134 @@ class PostgSailClient {
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Community — sailors who opted into public sharing
+  // ---------------------------------------------------------------------------
+
+  /** mcp_community_routes_fn — passages between two areas (PostGIS radius) */
+  async findCommunityRoutes({
+    from_lat,
+    from_lng,
+    to_lat,
+    to_lng,
+    radius_nm = 30,
+    limit = 10,
+  }: {
+    from_lat: number;
+    from_lng: number;
+    to_lat: number;
+    to_lng: number;
+    radius_nm?: number;
+    limit?: number;
+  }) {
+    return this.request("rpc/mcp_community_routes_fn", {
+      method: "POST",
+      body: JSON.stringify({
+        _from_lat:  from_lat,
+        _from_lng:  from_lng,
+        _to_lat:    to_lat,
+        _to_lng:    to_lng,
+        _radius_nm: radius_nm,
+        _limit:     limit,
+      }),
+    });
+  }
+
+  /** mcp_community_moorages_fn — anchorages near a position */
+  async findAnchoragesNear({
+    lat,
+    lng,
+    radius_nm = 20,
+    stay_type,
+  }: {
+    lat: number;
+    lng: number;
+    radius_nm?: number;
+    stay_type?: string; // "Anchor" | "Dock" | "Mooring Buoy" | undefined = all
+  }) {
+    return this.request("rpc/mcp_community_moorages_fn", {
+      method: "POST",
+      body: JSON.stringify({
+        _lat: lat,
+        _lng: lng,
+        _radius_nm: radius_nm,
+        // omit _stay_type entirely when not provided — SQL DEFAULT NULL returns all types
+        ...(stay_type !== undefined && { _stay_type: stay_type }),
+      }),
+    });
+  }
+
+  /** mcp_community_moorages_reachable_fn — polar-aware reachability */
+  async getReachableMoorages({
+    lat,
+    lng,
+    max_hours = 3,
+    wind_tws_kn,
+    wind_twd_deg,
+    tacking_ok = true,
+    stay_type,
+    radius_nm,
+  }: {
+    lat: number;
+    lng: number;
+    max_hours?: number;
+    wind_tws_kn?: number;
+    wind_twd_deg?: number;
+    tacking_ok?: boolean;
+    stay_type?: string;
+    radius_nm?: number;
+  }) {
+    return this.request("rpc/mcp_community_moorages_reachable_fn", {
+      method: "POST",
+      body: JSON.stringify({
+        _lat:        lat,
+        _lng:        lng,
+        _max_hours:  max_hours,
+        _tacking_ok: tacking_ok,
+        ...(wind_tws_kn  !== undefined && { _wind_tws_kn:  wind_tws_kn }),
+        ...(wind_twd_deg !== undefined && { _wind_twd_deg: wind_twd_deg }),
+        ...(stay_type    !== undefined && { _stay_type:    stay_type }),
+        ...(radius_nm    !== undefined && { _radius_nm:    radius_nm }),
+      }),
+    });
+  }
+
+  /** mcp_community_area_stats_fn — wind/conditions stats for an area */
+  async getAreaStats({
+    lat,
+    lng,
+    radius_nm = 50,
+    months,
+  }: {
+    lat: number;
+    lng: number;
+    radius_nm?: number;
+    months?: number[];
+  }) {
+    return this.request("rpc/mcp_community_area_stats_fn", {
+      method: "POST",
+      body: JSON.stringify({
+        _lat:       lat,
+        _lng:       lng,
+        _radius_nm: radius_nm,
+        ...(months !== undefined && { _months: months }),
+      }),
+    });
+  }
+ 
+  /** mcp_community_hotspots_fn — trips that transited a waypoint/strait */
+  async getHotspots({
+    waypoint_h3,
+    k = 1,
+  }: {
+    waypoint_h3: string;
+    k?: number;
+  }) {
+    return this.request("rpc/mcp_community_hotspots_fn", {
+      method: "POST",
+      body: JSON.stringify({ _waypoint_h3: waypoint_h3, _k: k }),
+    });
+  }
 }
 
 export default PostgSailClient;
