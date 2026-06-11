@@ -24,7 +24,21 @@ const toolDefinitions: Tool[] = [
     name: "get_vessel",
     title: "Get vessel metadata",
     description:
-      "Returns the vessel's dimensions (beam, length, height), ship type (sailing, motor, etc.), country of registration, make/model, platform/plugin version, it may include vessel image and specifications if present.",
+      "Returns the complete vessel profile:\n" +
+      "• Identity: name, MMSI, vessel_id, registration country, AIS ship type\n" +
+      "• Physical dimensions from AIS/SignalK: length (m), beam (m), height (m)\n" +
+      "• Connectivity: first_contact, last_contact, offline flag (no data >70 min)\n" +
+      "• Make/model: user-entered string (e.g. 'Bavaria 38 Holiday', 'Sun Fast 37')\n" +
+      "• Boat spec (spec key): structured sailboatdata.com data when linked — " +
+      "  LOA, LWL, beam, max/min draft (m), displacement (kg), ballast (kg), " +
+      "  sail area (m²), SA/displacement ratio, ballast/displacement ratio, " +
+      "  displacement/length ratio, comfort ratio, capsize screening formula, " +
+      "  hull speed (kn), rig type, keel type, hull type, designer, builder, build years.\n" +
+      "• has_polar: true if a polar diagram CSV is loaded\n" +
+      "• Images: primary vessel photo URL if available\n\n" +
+      "Use when asked: 'what boat do I have?', 'what are my vessel specs?', " +
+      "'is my boat suitable for offshore sailing?', 'what is my comfort ratio?', " +
+      "'how long is my boat?', 'what is my displacement?'",
     inputSchema: {
       type: "object",
       properties: {},
@@ -34,7 +48,7 @@ const toolDefinitions: Tool[] = [
     name: "get_vessel_polar",
     title: "Get vessel Polar metadata",
     description:
-      "Returns the vessel's Polar (CSV) data if present in an OCR format. Useful for performance analysis and optimization.",
+      "Returns the vessel's Polar (CSV) data if present in an OCR CSV format. Useful for performance analysis and optimization.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -321,24 +335,58 @@ const toolDefinitions: Tool[] = [
   },
   {
     name: "get_timelapse_data",
-    title: "Get vessel movement animation data",
+    title: "Get vessel timelapse web player URL",
     description:
-      "Retrieve vessel GPS positions for a date range, formatted for timelapse replay or animation. " +
-      "Use when the user wants to animate, replay, or visualize their movements over a specific period. " +
-      "Requires explicit start and end dates.",
+      "Returns a URL to the PostgSail timelapse web player showing the vessel's movement animated on a map. " +
+      "The player supports replay controls, speed adjustment, instruments overlay, satellite map, and 3D mode. " +
+      "Use when the user wants to visualize, animate, or replay one or multiple trips. " +
+      "Identify the trip range using get_logs or get_last_log. " +
+      "Provide log IDs (start_log / end_log) for a precise range, or dates (start_date / end_date) to span a period. " +
+      "Use the same value for start_log and end_log to replay a single trip.",
     inputSchema: {
       type: "object",
       properties: {
-        startDate: { type: "string", description: "Start of period (ISO 8601). Omit for all-time." },
-        endDate: { type: "string", description: "End of period (ISO 8601). Omit for all-time." },
-        format: {
+        start_log: {
+          type: "number",
+          description: "ID of the first log to include. Preferred over start_date when available.",
+        },
+        end_log: {
+          type: "number",
+          description: "ID of the last log to include. Use same as start_log for a single trip.",
+        },
+        start_date: {
           type: "string",
-          enum: ["points", "linestring"],
-          description: "'points' returns discrete GPS positions for an animated dot replay;\n'linestring' returns a continuous track line for drawing a route on a map.",
-          default: "points",
+          description: "Start of period (ISO 8601). Alternative to start_log.",
+        },
+        end_date: {
+          type: "string",
+          description: "End of period (ISO 8601). Alternative to end_log.",
+        },
+        map_type: {
+          type: "string",
+          enum: ["Satellite", "OpenStreetMap", "CartoDB.Positron", "CartoDB.DarkMatter", "Eniro (Scandinavia)", "Nautical charts (USA)", "EMODnet Bathymetry"],
+          description: "Base map style. Default: Satellite.",
+          default: "Satellite",
+        },
+        zoom: {
+          type: "number",
+          enum: [5, 6, 7, 8, 9, 10, 11, 12, 13],
+          description: "Initial map zoom level (5–13). Default: 13.",
+          default: 13,
+        },
+        color: {
+          type: "string",
+          enum: ["dodgerblue", "green", "yellow", "red", "orange", "black", "gray", "white"],
+          description: "Track color. Default: dodgerblue.",
+          default: "dodgerblue",
+        },
+        boat_type: {
+          type: "string",
+          enum: ["Sailboat", "SailboatSails", "Powerboat", "Dot"],
+          description: "Boat icon style. Default: SailboatSails.",
+          default: "SailboatSails",
         },
       },
-      required: ["startDate", "endDate"],
     },
   },
   {
@@ -369,6 +417,27 @@ const toolDefinitions: Tool[] = [
     },
   },
   {
+    name: "get_user_context",
+    title: "Get sailor and vessel context",
+    description:
+      "Returns personalised sailing context: sailor name, vessel details, lifetime stats " +
+      "(total trips, distance, countries), last 3 trips, favourite moorages, 30-day activity " +
+      "metrics, and alert preferences. " +
+      "PostgSail tracks: logbook (trips with GPS track, distance NM, speed knots), " +
+      "stays (anchor/dock/mooring buoy periods), moorages (named places clustered within 300m), " +
+      "and monitoring (live sensors: wind, depth, battery, solar, temperature, pressure, tanks). " +
+      "Use when asked: 'what data do you have?', 'what can you tell me about my sailing?', " +
+      "'overview of my history', or when the query needs broad sailing context to answer well.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+  // =========================================================================
+  // VESSEL TOOLS
+  // =========================================================================
+  {
     name: "get_engine_hours",
     title: "Get engine hours and service status",
     description:
@@ -395,186 +464,6 @@ const toolDefinitions: Tool[] = [
       required: [],
     },
   },
-  {
-    name: "get_user_context",
-    title: "Get sailor and vessel context",
-    description:
-      "Returns personalised sailing context: sailor name, vessel details, lifetime stats " +
-      "(total trips, distance, countries), last 3 trips, favourite moorages, 30-day activity " +
-      "metrics, and alert preferences. " +
-      "PostgSail tracks: logbook (trips with GPS track, distance NM, speed knots), " +
-      "stays (anchor/dock/mooring buoy periods), moorages (named places clustered within 300m), " +
-      "and monitoring (live sensors: wind, depth, battery, solar, temperature, pressure, tanks). " +
-      "Use when asked: 'what data do you have?', 'what can you tell me about my sailing?', " +
-      "'overview of my history', or when the query needs broad sailing context to answer well.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "find_community_routes",
-    title: "Find community passages between two places",
-    description:
-      "Search the PostgSail community for recorded passages between two geographic areas " +
-      "using H3 spatial indexing. Returns per-trip stats from real passages: distance (NM), " +
-      "duration (hours), avg speed (knots), max wind (knots), and tortuosity " +
-      "(1.0=straight line, >1.5=heavy tacking or winding route).\n\n" +
-      "You must supply H3 res-5 cell strings — resolve place names yourself:\n" +
-      "• Named route: use your geographic knowledge → coordinates → " +
-      "  h3.latlng_to_cell(lat, lng, 5). " +
-      "  Example: Gothenburg (57.71, 11.97) → '851f97fffffffff'.\n" +
-      "• User's own trip: call get_log_spatial first, read from_h3 and to_h3 directly.\n" +
-      "• k controls neighbourhood size: 0=exact cell, 1=7-cell ring (~252km² buffer, default), " +
-      "  2=19-cell ring. Larger k = broader match, fewer misses, more noise.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        from_h3: {
-          type: "string",
-          description:
-            "H3 res-5 cell index for the departure area. " +
-            "Compute with h3.latlng_to_cell(lat, lng, 5) or read from get_log_spatial.from_h3.",
-        },
-        to_h3: {
-          type: "string",
-          description:
-            "H3 res-5 cell index for the arrival area. " +
-            "Compute with h3.latlng_to_cell(lat, lng, 5) or read from get_log_spatial.to_h3.",
-        },
-        k: {
-          type: "number",
-          description:
-            "Ring size: 0=exact cell match, 1=7-cell ring (default), 2=19-cell ring. " +
-            "Use 1 for most passages. Use 0 only when you have a precise H3 cell and want strict matching.",
-          default: 1,
-        },
-      },
-      required: ["from_h3", "to_h3"],
-    },
-  },
-
-  {
-    name: "find_similar_trips",
-    title: "Find community trips similar to a description",
-    description:
-      "Semantic similarity search across public community logbooks using pgvector HNSW. " +
-      "Finds trips whose route character and conditions are semantically similar to a text description.\n\n" +
-      "Embed the query text using the same 384-dim model as the PostgSail pipeline " +
-      "(e.g. all-MiniLM-L6-v2) and pass the float array as query_embedding.\n\n" +
-      "Returns: from/to moorage names, date, distance, duration, and similarity score [0–1]. " +
-      "Only trips from vessels that have opted into public data sharing are returned.\n\n" +
-      "Use when asked: 'find trips like a coastal Med cruise in summer', " +
-      "'who else has sailed an overnight passage in light winds through the archipelago?'",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query_embedding: {
-          type: "array",
-          items: { type: "number" },
-          description:
-            "384-dimensional float vector produced by embedding the user's query text. " +
-            "Must use the same model as the PostgSail embedding pipeline.",
-        },
-        limit: {
-          type: "number",
-          description: "Maximum number of similar trips to return (default: 5).",
-          default: 5,
-        },
-      },
-      required: ["query_embedding"],
-    },
-  },
-
-  {
-    name: "find_anchorages_near",
-    title: "Find anchorages near a location",
-    description:
-      "Find anchorages, marinas, moorings, or docks near a position from the PostgSail " +
-      "community (vessels that have opted into public data sharing).\n\n" +
-      "Resolve place names to coordinates yourself before calling:\n" +
-      "• 'near me' / 'nearby': call get_monitoring_live first for current lat/lon.\n" +
-      "• Named place: use your geographic knowledge " +
-      "  (e.g. Gothenburg ≈ 57.71°N 11.97°E; Ibiza ≈ 38.91°N 1.43°E).\n\n" +
-      "stay_type: pass null or omit for all types. " +
-      "Default radius is 20nm — increase for sparse areas.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        lat: {
-          type: "number",
-          description: "Center latitude (WGS84 decimal degrees)",
-        },
-        lng: {
-          type: "number",
-          description: "Center longitude (WGS84 decimal degrees)",
-        },
-        radius_nm: {
-          type: "number",
-          description: "Search radius in nautical miles (default 20).",
-          default: 20,
-        },
-        stay_type: {
-          type: "string",
-          enum: ["Anchor", "Dock", "Mooring Buoy"],
-          description: "Filter by stay type. Omit or pass null for all types.",
-        },
-      },
-      required: ["lat", "lng"],
-    },
-  },
-
-  {
-    name: "get_reachable_moorages",
-    title: "Find moorages reachable within N hours",
-    description:
-      "Find community moorages reachable within N sailing hours from a given position, " +
-      "using the vessel's polar curve to estimate VMG at the given wind speed. " +
-      "Falls back to 6 knots if no polar is loaded or no wind data is provided.\n\n" +
-      "The response includes estimated_sog_kn (speed used) and polar_used (bool) " +
-      "so you can tell the user whether their polar was applied or a fallback was used.\n\n" +
-      "wind_twd_deg is accepted but bearing filtering is not yet implemented (reserved). " +
-      "Use when asked: 'where can I be tonight?', 'which anchorages can I reach before dark?'.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        lat: {
-          type: "number",
-          description: "Current latitude (WGS84). Call get_monitoring_live first if unknown.",
-        },
-        lng: {
-          type: "number",
-          description: "Current longitude (WGS84). Call get_monitoring_live first if unknown.",
-        },
-        max_hours: {
-          type: "number",
-          description: "Maximum sailing time in hours (default 3).",
-          default: 3,
-        },
-        wind_tws_kn: {
-          type: "number",
-          description: "True wind speed in knots. Used with polar to estimate VMG.",
-        },
-        wind_twd_deg: {
-          type: "number",
-          description: "True wind direction in degrees (reserved for future tacking filter).",
-        },
-        tacking_ok: {
-          type: "boolean",
-          description: "Reserved for future upwind bearing filter. Currently ignored.",
-          default: true,
-        },
-        stay_type: {
-          type: "string",
-          enum: ["Anchor", "Dock", "Mooring Buoy"],
-          description: "Filter by stay type. Omit for all types.",
-        },
-      },
-      required: ["lat", "lng"],
-    },
-  },
-
   {
     name: "get_sail_recommendation",
     title: "Recommend sail configuration for current conditions",
@@ -605,6 +494,181 @@ const toolDefinitions: Tool[] = [
         },
       },
       required: ["tws_kn", "twd_deg"],
+    },
+  },
+  // =========================================================================
+  // COMMUNITY DATA — sailors who opted into public sharing
+  // =========================================================================
+  {
+    name: "find_community_routes",
+    title: "Find community passages between two places",
+    description:
+      "Community passages between two geographic areas from sailors who opted into public sharing. " +
+      "Returns real passage stats: distance (NM), duration (hours), avg speed (knots), " +
+      "max wind (knots), vessel type.\n\n" +
+      "GEOCODING — resolve place names to coordinates before calling:\n" +
+      "• Use island or harbour CENTRE coordinates — radius_nm covers all departure points.\n" +
+      "• A single island spans multiple H3 cells; always use a large enough radius.\n\n" +
+      "RADIUS GUIDANCE:\n" +
+      "• 30nm: island-to-island Med or Baltic (Menorca, Mallorca, Gotland from centre)\n" +
+      "• 15nm: port-to-port or coastal\n" +
+      "• 50nm+: ocean passage endpoints\n\n" +
+      "NOTE: matches trips by start AND end. For transit queries use get_hotspots.\n\n" +
+      "FALLBACK: if empty, do NOT stop. Call find_anchorages_near for the destination, " +
+      "get_vessel for boat specs, and use your nautical knowledge to plan the passage.\n\n" +
+      "Use when asked: 'has anyone sailed from X to Y?', " +
+      "'how long does this passage take?', 'what wind on this route?'",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from_lat:  { type: "number", description: "Departure area center latitude" },
+        from_lng:  { type: "number", description: "Departure area center longitude" },
+        to_lat:    { type: "number", description: "Arrival area center latitude" },
+        to_lng:    { type: "number", description: "Arrival area center longitude" },
+        radius_nm: { type: "number", default: 30, description: "Search radius in NM (default 30)" },
+        limit:     { type: "number", default: 10, description: "Max results (default 10)" },
+      },
+      required: ["from_lat", "from_lng", "to_lat", "to_lng"],
+    },
+  },
+
+  {
+    name: "find_anchorages_near",
+    title: "Find community anchorages near a location",
+    description:
+      "Find anchorages, marinas, moorings, or docks near a position from the PostgSail community " +
+      "(sailors who opted into public data sharing). " +
+      "Returns name, stay type, distance, OSM data (wikidata, wikipedia, note, osm_url).\n\n" +
+      "GEOCODING — resolve place names to coordinates before calling:\n" +
+      "• 'near me' / 'nearby': call get_monitoring_live first for current lat/lon.\n" +
+      "• Named place: use geographic knowledge " +
+      "(Gothenburg ≈ 57.71°N 11.97°E; Ibiza ≈ 38.91°N 1.43°E).\n" +
+      "• Coordinates provided: use as-is.\n\n" +
+      "Use when asked: 'find an anchorage near X', 'where can I anchor near Y', " +
+      "'anchorages I haven't visited', 'shelter near [place]', 'find a dock within 20nm'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        latitude:       { type: "number", description: "Center latitude (WGS84)" },
+        longitude:      { type: "number", description: "Center longitude (WGS84)" },
+        radius_nm:      { type: "number", default: 20,  description: "Search radius in nautical miles (default 20)" },
+        stay_type:      { type: "string", enum: ["All", "Anchor", "Dock", "Mooring Buoy"], default: "All" },
+        unvisited_only: {
+          type: "boolean",
+          default: false,
+          description: "If true, only return moorages this vessel has never visited.",
+        },
+      },
+      required: ["latitude", "longitude"],
+    },
+  },
+
+  {
+    name: "find_reachable_moorages",
+    title: "Find moorages reachable within N hours",
+    description:
+      "Find community moorages reachable from a position within a given number of sailing hours. " +
+      "Uses the vessel's polar diagram (if loaded) and current wind to estimate boat speed; " +
+      "falls back to 6 knots if no polar or wind data is available.\n\n" +
+      "Returns each moorage with distance_nm and eta_hours, plus OSM data " +
+      "(wikidata, wikipedia, note, osm_url).\n\n" +
+      "INPUTS:\n" +
+      "• lat/lng: current position — read from get_monitoring_live if not provided\n" +
+      "• max_hours: sailing time budget (default 3h)\n" +
+      "• wind_tws_kn / wind_twd_deg: from get_monitoring_live for polar-based speed estimate\n\n" +
+      "Use when asked: 'where can I reach in 3 hours?', 'what anchorages can I make before dark?', " +
+      "'destinations within 4 hours sailing from here'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        lat:           { type: "number", description: "Current latitude. Read from get_monitoring_live." },
+        lng:           { type: "number", description: "Current longitude. Read from get_monitoring_live." },
+        max_hours:     { type: "number", default: 3,    description: "Maximum sailing time in hours (default 3)" },
+        wind_tws_kn:   { type: "number", description: "True wind speed in knots for polar speed estimate." },
+        wind_twd_deg:  { type: "number", description: "True wind direction in degrees." },
+        stay_type:     { type: "string", enum: ["All", "Anchor", "Dock", "Mooring Buoy"], default: "All" },
+        radius_nm:     { type: "number", description: "Override search radius in NM (default: max_hours × speed × 0.85)" },
+      },
+      required: ["lat", "lng"],
+    },
+  },
+  {
+    name: "get_area_stats",
+    title: "Get sailing conditions statistics for an area",
+    description:
+      "Aggregated wind and speed statistics from community trips through a geographic area. " +
+      "Useful for passage planning: typical wind, worst-case (p90) wind, average speed.\n\n" +
+      "Returns:\n" +
+      "• avg_wind_kn: average max wind recorded on trips through this area\n" +
+      "• p90_wind_kn: 90th percentile wind — worst-case planning figure\n" +
+      "• avg_speed_kn: average boat speed\n" +
+      "• avg_distance_nm: average trip distance through the area\n" +
+      "• vessels_sampled: number of distinct vessels backing the data\n" +
+      "• trip_count: total trips in sample\n\n" +
+      "GEOCODING: resolve place name to coordinates before calling.\n" +
+      "months: optional array of month numbers for seasonal filtering, e.g. [6,7,8] for summer.\n\n" +
+      "Use when asked: 'what wind is typical between Gibraltar and Lisbon?', " +
+      "'what are summer conditions in the Skagerrak?', " +
+      "'what should I expect sailing the Bay of Biscay in July?'",
+    inputSchema: {
+      type: "object",
+      properties: {
+        lat:       { type: "number", description: "Area center latitude" },
+        lng:       { type: "number", description: "Area center longitude" },
+        radius_nm: { type: "number", default: 50,  description: "Area radius in nautical miles (default 50)" },
+        months: {
+          type: "array",
+          items: { type: "number" },
+          description: "Optional month filter, e.g. [6,7,8] for June–August. Omit for all-year.",
+        },
+      },
+      required: ["lat", "lng"],
+    },
+  },
+  {
+    name: "get_hotspots",
+    title: "Find community trips through a waypoint or strait",
+    description:
+      "Find community trips that passed THROUGH a geographic area — a strait, canal, cape, or waypoint — " +
+      "regardless of where the trip started or ended.\n\n" +
+      "Different from find_community_routes (start+end match). Use get_hotspots for transit questions.\n\n" +
+      "HOW TO CALL — supply an H3 cell string at resolution 5:\n" +
+      "Compute with h3.latlng_to_cell(lat, lng, 5), or use a pre-computed cell below.\n\n" +
+      "PRE-COMPUTED CELLS for common sailing waypoints:\n" +
+      "• Gibraltar strait:    85391aa3fffffff  (36.14°N, 5.35°W)  — ring_size 2\n" +
+      "• Dover strait:        8519480bfffffff  (51.02°N, 1.48°E)  — ring_size 1\n" +
+      "• Skagerrak centre:    851f2483fffffff  (57.80°N, 9.50°E)  — ring_size 2\n" +
+      "• Kattegat centre:     851f2393fffffff  (56.50°N, 11.50°E) — ring_size 1\n" +
+      "• Bosphorus:           851ec917fffffff  (41.12°N, 29.08°E) — ring_size 1\n" +
+      "• Strait of Messina:   853f26cffffffff  (38.25°N, 15.62°E) — ring_size 1\n" +
+      "• Bonifacio strait:    851e9497fffffff  (41.37°N, 9.27°E)  — ring_size 1\n" +
+      "• Cape Finisterre:     85392473fffffff  (42.88°N, 9.27°W)  — ring_size 1\n" +
+      "• Cape St Vincent:     8539101bfffffff  (37.02°N, 9.00°W)  — ring_size 1\n" +
+      "• Kiel Canal west:     851f1593fffffff  (53.89°N, 9.14°E)  — ring_size 1\n" +
+      "• Kiel Canal east:     851f0603fffffff  (54.36°N, 10.15°E) — ring_size 1\n" +
+      "• English Channel mid: 85186687fffffff  (50.00°N, 1.50°W)  — ring_size 1\n" +
+      "• Bay of Biscay:       85185d43fffffff  (45.00°N, 5.00°W)  — ring_size 2\n\n" +
+      "ring_size 1: narrow straits (Messina, Bonifacio, Kiel). " +
+      "ring_size 2: wide straits, capes, open water (Gibraltar, Skagerrak, Biscay).\n\n" +
+      "Use when asked: 'find trips through Gibraltar', 'who crossed the Skagerrak', " +
+      "'passages through the Kiel Canal', 'who transited the Bosphorus', " +
+      "'trips that rounded Cape Finisterre'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        waypoint_h3: {
+          type: "string",
+          description:
+            "H3 cell index at resolution 5. Use pre-computed values above or " +
+            "compute with h3.latlng_to_cell(lat, lng, 5).",
+        },
+        ring_size: {
+          type: "number",
+          default: 1,
+          description: "Ring expansion: 1=7 cells (narrow strait), 2=19 cells (wide strait/cape).",
+        },
+      },
+      required: ["waypoint_h3"],
     },
   },
 ];

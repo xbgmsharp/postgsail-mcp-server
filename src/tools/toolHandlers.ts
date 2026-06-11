@@ -1,6 +1,25 @@
-import { profile } from "console";
 import PostgSailClient, { ViewResult } from "../client/postgsail-client.js";
 import { resourcesMap } from "../resources/resourceHandlers.js";
+
+/** Strip Point/MultiPoint features from a log's geojson FeatureCollection — keep only LineString. */
+function dropPointFeatures(log: any): any {
+  if (!Array.isArray(log?.geojson?.features)) return log;
+  const features = log.geojson.features.filter(
+    (f: any) => f?.geometry?.type !== "Point" && f?.geometry?.type !== "MultiPoint"
+  );
+  return { ...log, geojson: { ...log.geojson, features } };
+}
+
+/** Inject log_url and timelapse_url into each log entry when public_vessel is available. */
+function withLogLinks(logs: any[], publicVessel: string | undefined): any[] {
+  if (!publicVessel) return logs;
+  const base = process.env.POSTGSAIL_WEB_URL || "https://iot.openplotter.cloud";
+  return logs.map((log: any) => ({
+    ...log,
+    log_url: `${base}/${publicVessel}/log/${log.id}`,
+    timelapse_url: `${base}/${publicVessel}/timelapse/${log.id}`,
+  }));
+}
 
 /** Unwrap a ViewResult to its data array/object, throwing if shape is unexpected. */
 function unwrapArray(result: ViewResult | string, label: string): any[] {
@@ -12,6 +31,24 @@ function unwrapArray(result: ViewResult | string, label: string): any[] {
 function unwrapData(result: ViewResult | string, label: string): any {
   if (typeof result === "string") throw new Error(`Unexpected text response for ${label}`);
   return result.data;
+}
+
+const GIS_BASE_URL = "https://gis.openplotter.cloud";
+
+async function fetchLogMapImage(vesselId: string, logId: string): Promise<{ type: "image"; data: string; mimeType: string } | null> {
+  try {
+    const url = `${GIS_BASE_URL}/log_${vesselId}_${logId}.png`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const buffer = await response.arrayBuffer();
+    return {
+      type: "image",
+      data: Buffer.from(buffer).toString("base64"),
+      mimeType: "image/png",
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Format pagination info for inclusion in tool responses. */
@@ -55,32 +92,37 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
       }
 
       case "get_logs": {
-        const result = await client.getLogs({
-          start_date: (args?.start_date as string) || undefined,
-          end_date: (args?.end_date as string) || undefined,
-          distance: (args?.distance as number) || undefined,
-          duration: (args?.duration as number) || undefined,
-          tags: (args?.tags as string[]) || undefined,
-          limit: (args?.limit as number) || 10,
-          offset: (args?.offset as number) || 0,
-        });
-        const logs = unwrapArray(result, "logbooks");
+        const [result, publicVessel] = await Promise.all([
+          client.getLogs({
+            start_date: (args?.start_date as string) || undefined,
+            end_date: (args?.end_date as string) || undefined,
+            distance: (args?.distance as number) || undefined,
+            duration: (args?.duration as number) || undefined,
+            tags: (args?.tags as string[]) || undefined,
+            limit: (args?.limit as number) || 10,
+            offset: (args?.offset as number) || 0,
+          }),
+          client.getPublicVessel(),
+        ]);
+        const logs = withLogLinks(unwrapArray(result, "logbooks"), publicVessel ?? undefined);
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(logs, null, 2) + paginationNote(result),
-            },
-          ],
+          content: [{ type: "text", text: JSON.stringify(logs, null, 2) + paginationNote(result) }],
         };
       }
 
       case "get_last_log": {
-        const result = await client.getLastLog();
-        const lastLog = unwrapArray(result, "last log");
-        return {
-          content: [{ type: "text", text: JSON.stringify(lastLog, null, 2) }],
-        };
+        const [result, publicVessel] = await Promise.all([
+          client.getLastLog(),
+          client.getPublicVessel(),
+        ]);
+        const lastLog = withLogLinks(unwrapArray(result, "last log"), publicVessel ?? undefined).map(dropPointFeatures);
+        const content: any[] = [{ type: "text", text: JSON.stringify(lastLog, null, 2) }];
+        const log0 = lastLog[0];
+        if (log0?.vessel_id && log0?.id) {
+          const img = await fetchLogMapImage(log0.vessel_id, log0.id);
+          if (img) content.push(img);
+        }
+        return { content };
       }
 
       case "get_logs_geojson": {
@@ -98,11 +140,18 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
 
       case "get_log": {
         if (!args?.id) throw new Error("Log ID is required");
-        const result = await client.getLog(args.id as string);
-        const logData = unwrapArray(result, "logbook");
-        return {
-          content: [{ type: "text", text: JSON.stringify(logData, null, 2) }],
-        };
+        const [result, publicVessel] = await Promise.all([
+          client.getLog(args.id as string),
+          client.getPublicVessel(),
+        ]);
+        const logData = withLogLinks(unwrapArray(result, "logbook"), publicVessel ?? undefined).map(dropPointFeatures);
+        const content: any[] = [{ type: "text", text: JSON.stringify(logData, null, 2) }];
+        const log = logData[0];
+        if (log?.vessel_id && log?.id) {
+          const img = await fetchLogMapImage(log.vessel_id, log.id);
+          if (img) content.push(img);
+        }
+        return { content };
       }
 
       case "get_moorages": {
@@ -330,104 +379,63 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
       }
 
       case "get_timelapse_data": {
-        if (!args?.startDate || !args?.endDate) {
-          throw new Error("startDate and endDate are required");
+        const hasLogRange = args?.start_log !== undefined && args?.end_log !== undefined;
+        const hasDateRange = args?.start_date && args?.end_date;
+        if (!hasLogRange && !hasDateRange) {
+          throw new Error("Provide either start_log+end_log (log IDs) or start_date+end_date");
         }
-        let timelapse;
-        if (args?.format === "linestring") {
-          timelapse = await client.getTimelapse(
-            `start_date=${args.startDate}&end_date=${args.endDate}`
-          );
-        } else {
-          timelapse = await client.getTimelapseTrips(
-            `start_date=${args.startDate}&end_date=${args.endDate}`
-          );
+        const publicVessel = await client.getPublicVessel();
+        if (!publicVessel) throw new Error("Could not determine public vessel name from profile");
+        const webBaseURL = process.env.POSTGSAIL_WEB_URL || "https://iot.openplotter.cloud";
+        const searchParams = new URLSearchParams();
+        if (hasLogRange) {
+          searchParams.set("start_log", String(args.start_log));
+          searchParams.set("end_log", String(args.end_log));
         }
-        const timelapseData = unwrapData(timelapse, "timelapse");
+        if (hasDateRange) {
+          searchParams.set("start_date", args.start_date as string);
+          searchParams.set("end_date", args.end_date as string);
+        }
+        if (args?.map_type)  searchParams.set("map_type",  args.map_type  as string);
+        if (args?.zoom !== undefined) searchParams.set("zoom", String(args.zoom));
+        if (args?.color)     searchParams.set("color",     args.color     as string);
+        if (args?.boat_type) searchParams.set("boat_type", args.boat_type as string);
+        const url = `${webBaseURL}/${publicVessel}/timelapse?${searchParams.toString()}`;
         return {
-          content: [{ type: "text", text: JSON.stringify(timelapseData, null, 2) }],
+          content: [{ type: "text", text: url }],
         };
       }
 
-      case "find_community_routes": {
-        if (!args?.from_h3 || !args?.to_h3) {
-          throw new Error("from_h3 and to_h3 are required");
-        }
-        const result = await client.findCommunityRoutes({
-          from_h3: args.from_h3 as string,
-          to_h3: args.to_h3 as string,
-          k: (args.k as number) ?? 1,
-        });
-        const routesData = unwrapData(result, "community routes");
+      case "get_user_context": {
+        const contextData = await client.getContext();
+        if (!contextData.context) throw new Error("No sailor data found");
         return {
-          content: [{ type: "text", text: JSON.stringify(routesData, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(contextData.context, null, 2) }],
         };
       }
 
-      case "find_similar_trips": {
-        if (!args?.query_embedding) {
-          throw new Error("query_embedding is required");
+      case "get_initial_context": {
+        const contextData: Record<string, any> = {
+          server_info: {
+            name: "postgsail-server",
+            version: "0.0.9",
+            loaded_at: new Date().toISOString(),
+            description:
+              "PostgSail MCP Server - Provides AI agents with read only access to marine vessel data",
+          },
+        };
+        for (const [uri, content] of resourcesMap.entries()) {
+          const resourceKey = uri.replace("postgsail://", "");
+          contextData[resourceKey] = content;
         }
-        const result = await client.findSimilarTrips({
-          query_embedding: args.query_embedding as number[],
-          limit: (args.limit as number) ?? 5,
-        });
-        const similarData = unwrapData(result, "similar trips");
         return {
-          content: [{ type: "text", text: JSON.stringify(similarData, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(contextData, null, 2) }],
         };
       }
 
-      case "find_anchorages_near": {
-        if (args?.lat === undefined || args?.lng === undefined) {
-          throw new Error("lat and lng are required");
-        }
-        const stayType =
-          args.stay_type && args.stay_type !== "All"
-            ? (args.stay_type as string)
-            : undefined;
-
-        const result = await client.findAnchoragesNear({
-          lat: args.lat as number,
-          lng: args.lng as number,
-          radius_nm: (args.radius_nm as number) ?? 20,
-          stay_type: stayType,
-        });
-        const anchorages = unwrapData(result, "anchorages near");
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(anchorages, null, 2) + paginationNote(result),
-            },
-          ],
-        };
-      }
-
-      case "get_reachable_moorages": {
-        if (args?.lat === undefined || args?.lng === undefined) {
-          throw new Error("lat and lng are required");
-        }
-        const stayType =
-          args.stay_type && args.stay_type !== "All"
-            ? (args.stay_type as string)
-            : undefined;
-
-        const result = await client.getReachableMoorages({
-          lat: args.lat as number,
-          lng: args.lng as number,
-          max_hours: (args.max_hours as number) ?? 3,
-          wind_tws_kn: args.wind_tws_kn as number | undefined,
-          wind_twd_deg: args.wind_twd_deg as number | undefined,
-          tacking_ok: (args.tacking_ok as boolean) ?? true,
-          stay_type: stayType,
-        });
-        const moorages = unwrapData(result, "reachable moorages");
-        return {
-          content: [{ type: "text", text: JSON.stringify(moorages, null, 2) }],
-        };
-      }
-
+      // =========================================================================
+      // VESSEL TOOLS
+      // =========================================================================
       case "get_sail_recommendation": {
         if (args?.tws_kn === undefined || args?.twd_deg === undefined) {
           throw new Error("tws_kn and twd_deg are required");
@@ -451,31 +459,100 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
         };
       }
 
-      case "get_user_context": {
-        const contextData = await client.getContext();
-        if (!contextData.context) throw new Error("No sailor data found");
+      // =========================================================================
+      // COMMUNITY DATA — sailors who opted into public sharing
+      // =========================================================================
+      // find_community_routes → mcp_community_routes_fn
+      case "find_community_routes": {
+        if (
+          args?.from_lat === undefined || args?.from_lng === undefined ||
+          args?.to_lat   === undefined || args?.to_lng   === undefined
+        ) {
+          throw new Error("from_lat, from_lng, to_lat and to_lng are required");
+        }
+        const result = await client.findCommunityRoutes({
+          from_lat:  args.from_lat  as number,
+          from_lng:  args.from_lng  as number,
+          to_lat:    args.to_lat    as number,
+          to_lng:    args.to_lng    as number,
+          radius_nm: (args.radius_nm as number) ?? 30,
+          limit:     (args.limit     as number) ?? 10,
+        });
+        const routesData = unwrapData(result, "community routes");
+        return { content: [{ type: "text", text: JSON.stringify(routesData, null, 2) }] };
+      }
+
+      // find_anchorages_near → mcp_community_moorages_fn
+      case "find_anchorages_near": {
+        if (args?.latitude === undefined || args?.longitude === undefined) {
+          throw new Error("latitude and longitude are required");
+        }
+        const stayType =
+          args.stay_type && args.stay_type !== "All"
+            ? (args.stay_type as string)
+            : undefined;
+        const result = await client.findAnchoragesNear({
+          lat:       args.latitude  as number,
+          lng:       args.longitude as number,
+          radius_nm: (args.radius_nm as number) ?? 20,
+          stay_type: stayType,
+        });
+        const anchorages = unwrapData(result, "anchorages near");
         return {
-          content: [{ type: "text", text: JSON.stringify(contextData.context, null, 2) }],
+          content: [{
+            type: "text",
+            text: JSON.stringify(anchorages, null, 2) + paginationNote(result),
+          }],
         };
       }
 
-      case "get_initial_context": {
-        const contextData: Record<string, any> = {
-          server_info: {
-            name: "postgsail-server",
-            version: "0.0.8",
-            loaded_at: new Date().toISOString(),
-            description:
-              "PostgSail MCP Server - Provides AI agents with read only access to marine vessel data",
-          },
-        };
-        for (const [uri, content] of resourcesMap.entries()) {
-          const resourceKey = uri.replace("postgsail://", "");
-          contextData[resourceKey] = content;
+      // find_reachable_moorages → mcp_community_moorages_reachable_fn
+      case "find_reachable_moorages": {
+        if (args?.lat === undefined || args?.lng === undefined) {
+          throw new Error("lat and lng are required");
         }
-        return {
-          content: [{ type: "text", text: JSON.stringify(contextData, null, 2) }],
-        };
+        const stayType =
+          args.stay_type && args.stay_type !== "All"
+            ? (args.stay_type as string)
+            : undefined;
+        const result = await client.getReachableMoorages({
+          lat:          args.lat          as number,
+          lng:          args.lng          as number,
+          max_hours:    (args.max_hours    as number)  ?? 3,
+          wind_tws_kn:  args.wind_tws_kn  as number | undefined,
+          wind_twd_deg: args.wind_twd_deg as number | undefined,
+          tacking_ok:   (args.tacking_ok  as boolean) ?? true,
+          stay_type:    stayType,
+          radius_nm:    args.radius_nm    as number | undefined,
+        });
+        const moorages = unwrapData(result, "reachable moorages");
+        return { content: [{ type: "text", text: JSON.stringify(moorages, null, 2) }] };
+      }
+
+      // get_area_stats → mcp_community_area_stats_fn
+      case "get_area_stats": {
+        if (args?.lat === undefined || args?.lng === undefined) {
+          throw new Error("lat and lng are required");
+        }
+        const result = await client.getAreaStats({
+          lat:       args.lat       as number,
+          lng:       args.lng       as number,
+          radius_nm: (args.radius_nm as number)   ?? 50,
+          months:    args.months    as number[] | undefined,
+        });
+        const statsData = unwrapData(result, "area stats");
+        return { content: [{ type: "text", text: JSON.stringify(statsData, null, 2) }] };
+      }
+ 
+      // get_hotspots → mcp_community_hotspots_fn
+      case "get_hotspots": {
+        if (!args?.waypoint_h3) throw new Error("waypoint_h3 is required");
+        const result = await client.getHotspots({
+          waypoint_h3: args.waypoint_h3 as string,
+          k:           (args.ring_size  as number) ?? 1,
+        });
+        const hotspotsData = unwrapData(result, "hotspots");
+        return { content: [{ type: "text", text: JSON.stringify(hotspotsData, null, 2) }] };
       }
 
       default:
