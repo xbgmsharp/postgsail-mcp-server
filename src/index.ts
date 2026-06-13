@@ -19,26 +19,25 @@ import { Logger } from "./utils/logger.js";
 
 const logger = new Logger("Main");
 
-const POSTGSAIL_API_URL =
-  process.env.POSTGSAIL_API_URL || "http://localhost:3000/";
+const POSTGSAIL_API_URL = process.env.POSTGSAIL_API_URL || "http://localhost:3000";
+const POSTGSAIL_WEB_URL = process.env.POSTGSAIL_WEB_URL || "http://localhost:3006";
+const POSTGSAIL_GIS_URL = process.env.POSTGSAIL_GIS_URL || "http://localhost:8080";
+const POSTGSAIL_RESOURCES_URL = process.env.POSTGSAIL_RESOURCES_URL || "http://localhost:3000/resources";
 const PORT = process.env.PORT || 3001;
-
-if (!POSTGSAIL_API_URL) {
-  logger.error("POSTGSAIL_API_URL environment variable is required");
-  process.exit(1);
-}
+const MCP_TRANSPORT = process.env.MCP_TRANSPORT || "http";
 
 async function main() {
   try {
     await loadResources();
 
-    const transport = process.env.MCP_TRANSPORT || "http";
-
-    if (transport === "stdio") {
+    if (MCP_TRANSPORT === "stdio") {
       await startStdioServer();
     } else {
       const httpServer = await startHttpServer();
-      logger.info("POSTGSAIL_API_URL", { url: POSTGSAIL_API_URL });
+      logger.info("POSTGSAIL_API_URL",       { url: POSTGSAIL_API_URL });
+      logger.info("POSTGSAIL_WEB_URL",       { url: POSTGSAIL_WEB_URL });
+      logger.info("POSTGSAIL_GIS_URL",       { url: POSTGSAIL_GIS_URL });
+      logger.info("POSTGSAIL_RESOURCES_URL", { url: POSTGSAIL_RESOURCES_URL });
       httpServer.listen(PORT, () => {
         logger.success(`PostgSail MCP Server running on http://localhost:${PORT}`);
       });

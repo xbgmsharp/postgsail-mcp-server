@@ -1,5 +1,7 @@
 import { RESOURCES } from "../resources/resources.js";
 
+const POSTGSAIL_RESOURCES_URL = process.env.POSTGSAIL_RESOURCES_URL || "http://localhost:3000/resources";
+
 export const resourcesMap: Map<string, any> = new Map();
 
 export async function loadResources(): Promise<void> {
@@ -9,7 +11,7 @@ export async function loadResources(): Promise<void> {
     for (const file of resourceFiles) {
       try {
         const resourceName = file.replace(/_/g, "-");
-        const url = `https://openplotter.cloud/resources/${resourceName}.json`;
+        const url = `${POSTGSAIL_RESOURCES_URL}/${resourceName}.json`;
         console.error("loadResources_web file:", url);
         const fetchResult = await fetch(url);
 

@@ -1,23 +1,45 @@
 import PostgSailClient, { ViewResult } from "../client/postgsail-client.js";
 import { resourcesMap } from "../resources/resourceHandlers.js";
 
-/** Strip Point/MultiPoint features from a log's geojson FeatureCollection — keep only LineString. */
-function dropPointFeatures(log: any): any {
-  if (!Array.isArray(log?.geojson?.features)) return log;
-  const features = log.geojson.features.filter(
-    (f: any) => f?.geometry?.type !== "Point" && f?.geometry?.type !== "MultiPoint"
-  );
-  return { ...log, geojson: { ...log.geojson, features } };
+const POSTGSAIL_WEB_URL = process.env.POSTGSAIL_WEB_URL || "http://localhost:3006";
+const POSTGSAIL_GIS_URL = process.env.POSTGSAIL_GIS_URL || "http://localhost:8080";
+
+/** Clean a log object for LLM: replace geojson with export note, drop bbox_geom, clean observations. */
+function cleanLogForLLM(log: any): any {
+  const result = { ...log };
+  if (result.geojson !== undefined) {
+    result.geojson = "Track geometry available — export via export_log_track tool (GeoJSON, GPX, or KML).";
+  }
+  delete result.bbox_geom;
+  if (result.observations) {
+    try {
+      const obs = typeof result.observations === "string"
+        ? JSON.parse(result.observations)
+        : result.observations;
+      const hasRealData = Object.values(obs).some((v) => v !== -1);
+      result.observations = hasRealData ? obs : null;
+    } catch {
+      // leave observations as-is if unparseable
+    }
+  }
+  return result;
+}
+
+/** Drop geog from an object — raw geography is not useful for LLM context. */
+function dropGeog(obj: any): any {
+  if (!obj || typeof obj !== "object") return obj;
+  const result = { ...obj };
+  delete result.geog;
+  return result;
 }
 
 /** Inject log_url and timelapse_url into each log entry when public_vessel is available. */
 function withLogLinks(logs: any[], publicVessel: string | undefined): any[] {
   if (!publicVessel) return logs;
-  const base = process.env.POSTGSAIL_WEB_URL || "https://iot.openplotter.cloud";
   return logs.map((log: any) => ({
     ...log,
-    log_url: `${base}/${publicVessel}/log/${log.id}`,
-    timelapse_url: `${base}/${publicVessel}/timelapse/${log.id}`,
+    log_url: `${POSTGSAIL_WEB_URL}/${publicVessel}/log/${log.id}`,
+    timelapse_url: `${POSTGSAIL_WEB_URL}/${publicVessel}/timelapse/${log.id}`,
   }));
 }
 
@@ -33,11 +55,9 @@ function unwrapData(result: ViewResult | string, label: string): any {
   return result.data;
 }
 
-const GIS_BASE_URL = "https://gis.openplotter.cloud";
-
 async function fetchLogMapImage(vesselId: string, logId: string): Promise<{ type: "image"; data: string; mimeType: string } | null> {
   try {
-    const url = `${GIS_BASE_URL}/log_${vesselId}_${logId}.png`;
+    const url = `${POSTGSAIL_GIS_URL}/log_${vesselId}_${logId}.png`;
     const response = await fetch(url);
     if (!response.ok) return null;
     const buffer = await response.arrayBuffer();
@@ -104,7 +124,7 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
           }),
           client.getPublicVessel(),
         ]);
-        const logs = withLogLinks(unwrapArray(result, "logbooks"), publicVessel ?? undefined);
+        const logs = withLogLinks(unwrapArray(result, "logbooks"), publicVessel ?? undefined).map(cleanLogForLLM);
         return {
           content: [{ type: "text", text: JSON.stringify(logs, null, 2) + paginationNote(result) }],
         };
@@ -115,7 +135,7 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
           client.getLastLog(),
           client.getPublicVessel(),
         ]);
-        const lastLog = withLogLinks(unwrapArray(result, "last log"), publicVessel ?? undefined).map(dropPointFeatures);
+        const lastLog = withLogLinks(unwrapArray(result, "last log"), publicVessel ?? undefined).map(cleanLogForLLM);
         const content: any[] = [{ type: "text", text: JSON.stringify(lastLog, null, 2) }];
         const log0 = lastLog[0];
         if (log0?.vessel_id && log0?.id) {
@@ -144,7 +164,7 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
           client.getLog(args.id as string),
           client.getPublicVessel(),
         ]);
-        const logData = withLogLinks(unwrapArray(result, "logbook"), publicVessel ?? undefined).map(dropPointFeatures);
+        const logData = withLogLinks(unwrapArray(result, "logbook"), publicVessel ?? undefined).map(cleanLogForLLM);
         const content: any[] = [{ type: "text", text: JSON.stringify(logData, null, 2) }];
         const log = logData[0];
         if (log?.vessel_id && log?.id) {
@@ -174,7 +194,7 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
       case "get_moorage": {
         if (!args?.id) throw new Error("Moorage ID is required");
         const result = await client.getMoorage(args.id as string);
-        const moorageData = unwrapArray(result, "moorage");
+        const moorageData = unwrapArray(result, "moorage").map(dropGeog);
         return {
           content: [{ type: "text", text: JSON.stringify(moorageData, null, 2) }],
         };
@@ -386,7 +406,6 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
         }
         const publicVessel = await client.getPublicVessel();
         if (!publicVessel) throw new Error("Could not determine public vessel name from profile");
-        const webBaseURL = process.env.POSTGSAIL_WEB_URL || "https://iot.openplotter.cloud";
         const searchParams = new URLSearchParams();
         if (hasLogRange) {
           searchParams.set("start_log", String(args.start_log));
@@ -400,7 +419,7 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
         if (args?.zoom !== undefined) searchParams.set("zoom", String(args.zoom));
         if (args?.color)     searchParams.set("color",     args.color     as string);
         if (args?.boat_type) searchParams.set("boat_type", args.boat_type as string);
-        const url = `${webBaseURL}/${publicVessel}/timelapse?${searchParams.toString()}`;
+        const url = `${POSTGSAIL_WEB_URL}/${publicVessel}/timelapse?${searchParams.toString()}`;
         return {
           content: [{ type: "text", text: url }],
         };
