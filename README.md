@@ -40,7 +40,7 @@ Accessible at https://mcp.openplotter.cloud/
 
 Others AI [ClaudeAI](https://claude.ai) and [OpenAI](https://chatgpt.com/) requires an upgrade plan to use remote connectors.
 
-However you can use the MCP locally with Claude Desktop app.
+It works with LMStudio
 
 ## Installation
 
@@ -68,16 +68,39 @@ You can ask anything related to PostgSail all readonly API endpoint are availabl
   * `Provide a daily briefing of <boat_name> systems`
   * `Summarize my last trip`
   * `Summarize my summer sailing voyage`
+  * `Create a synopsis of our travels so far on <boat_name>`
+  * `How many engine hours?`
+
+Community-aware features: sailors who have opted into public data sharing (logs, monitoring, timelapse) now contribute to a shared knowledge base that the AI can query anonymously.
+  * `Has anyone sailed from Gothenburg to Stockholm?`
+  * `Find trips similar to a Mediterranean coastal cruise`
+  * `Find trips through the Skagerrak`
+  * `What are the moorages in Corsica`
+  * `What are the anchor moorage in Sardinian`
 
 ## Available Resources
 
 The server exposes these static reference resources:
 
-- `postgsail://postgsail_overview` - PostgSail overview and core concepts
-- `postgsail://path_categories_guide` - Guide to understanding PostgSail paths
-- `postgsail://mcp_tool_reference` - Reference for available MCP tools and usage patterns
+- `postgsail://postgsail_overview` - Sailing Logbook Data Guide
+- `postgsail://path_categories_guide` - Vessel Sensors Guide
+- `postgsail://mcp_tool_reference` - Sailing Assistant Tool Guide
 
 **Note:** While these resources can be accessed individually via the MCP resource protocol, the `get_initial_context()` tool provides a more convenient way to access all reference materials in a single call, making it the recommended approach for AI agents to understand the system.
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and adjust values for your deployment.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `POSTGSAIL_API_URL` | `http://localhost:3000` | PostgSail PostgREST API base URL |
+| `POSTGSAIL_WEB_URL` | `http://localhost:3006` | PostgSail web app base URL (log and timelapse links) |
+| `POSTGSAIL_GIS_URL` | `http://localhost:8080` | PostgSail GIS server URL (log map images) |
+| `POSTGSAIL_RESOURCES_URL` | `http://localhost:3000/resources` | PostgSail static resources URL (MCP reference JSON files) |
+| `PORT` | `3001` | HTTP server port (HTTP transport only) |
+| `MCP_TRANSPORT` | `http` | Transport mode: `http` or `stdio` |
+| `POSTGSAIL_TOKEN` | `` | JWT token (STDIO transport only) |
 
 ## License
 
