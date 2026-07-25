@@ -33,7 +33,7 @@
   "devDependencies": {
     "@anthropic-ai/mcpb": "^2.1.2",
     "@eslint/js": "^10.0.1",
-    "@modelcontextprotocol/inspector": "^0.21.2",
+    "@modelcontextprotocol/inspector": "^0.22.0",
     "@types/node": "^22.19.20",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
