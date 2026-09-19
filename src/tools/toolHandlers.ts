@@ -96,10 +96,10 @@ export async function handleToolCall(params: any, client: PostgSailClient) {
       }
 
       case "get_vessel": {
-        const vessel = await client.getVessel();
-        if (!vessel?.vessel) throw new Error("No vessel data found");
+        const result = await client.getVessel();
+        const vessel = unwrapArray(result, "vessel");
         return {
-          content: [{ type: "text", text: JSON.stringify(vessel.vessel, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(vessel, null, 2) }],
         };
       }
 
